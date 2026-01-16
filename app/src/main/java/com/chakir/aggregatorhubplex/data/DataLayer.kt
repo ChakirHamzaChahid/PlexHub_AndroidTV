@@ -13,30 +13,26 @@ import kotlinx.serialization.SerialName
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.http.Query
+import java.net.URI
 import java.util.concurrent.TimeUnit
 
 // --- MODELS ---
 
 @Serializable
 data class Server(
-    // CORRECTION : Mapping JSON exact avec le backend Python
     @SerialName("server_name") val name: String = "Inconnu",
     @SerialName("stream_url") val url: String = "",
-    @SerialName("m3u_url") private val _m3uUrl: String? = null,
+    // CORRECTION : Renommé en public pour pouvoir être instancié si besoin
+    @SerialName("m3u_url") val rawM3uUrl: String? = null,
     @SerialName("resolution") val resolution: String? = "SD",
     @SerialName("plex_deeplink") val plexDeepLink: String? = null,
     @SerialName("plex_web_url") val plexWebUrl: String? = null
 ) {
-    val m3uUrl: String? get() = _m3uUrl?.let { fixUrl(it) }
+    val m3uUrl: String? get() = rawM3uUrl?.let { fixUrl(it) }
     val streamUrl: String get() = fixUrl(url)
 
     private fun fixUrl(url: String): String {
-        if (url.startsWith("http")) {
-            return url.replace("localhost", "10.0.2.2").replace("127.0.0.1", "10.0.2.2")
-        }
-        val baseUrl = NetworkModule.currentBaseUrl.trimEnd('/')
-        val relativePath = url.trimStart('/')
-        return "$baseUrl/$relativePath"
+        return UrlFixer.fix(url)
     }
 }
 
@@ -44,26 +40,19 @@ data class Server(
 data class Episode(
     val id: String = "",
     val title: String = "Épisode sans titre",
-    @SerialName("index") val episodeNumber: Int? = 0, // Backend envoie "index", pas "episode_number"
+    @SerialName("index") val episodeNumber: Int? = 0,
     val description: String? = null,
     @SerialName("thumb_url") val thumbUrl: String? = null,
     @SerialName("summary") val overview: String? = null,
-
-    // CORRECTION : Le backend envoie "sources"
     @SerialName("sources") val servers: List<Server>? = emptyList(),
-
-    @SerialName("still_url") private val _stillUrl: String? = null
+    // CORRECTION : Renommé en public (rawStillUrl)
+    @SerialName("still_url") val rawStillUrl: String? = null
 ) {
-    val stillUrl: String?
-        get() = _stillUrl?.let {
-            if (it.startsWith("http")) it.replace("localhost", "10.0.2.2")
-            else "${NetworkModule.currentBaseUrl.trimEnd('/')}/${it.trimStart('/')}"
-        }
+    val stillUrl: String? get() = rawStillUrl?.let { UrlFixer.fix(it) }
 }
 
 @Serializable
 data class Season(
-    // Backend n'envoie pas d'ID sur la saison, on peut l'ignorer ou le générer
     @SerialName("index") val seasonNumber: Int? = 0,
     val title: String = "",
     val episodes: List<Episode> = emptyList()
@@ -77,35 +66,30 @@ data class Movie(
     @SerialName("summary") val description: String? = "Aucune description disponible",
     val rating: Float? = null,
     @SerialName("genres") val genres: List<String>? = emptyList(),
-    val director: String? = null, // Déjà présent dans votre code actuel, on s'assure qu'il est bien mappé
+    val director: String? = null,
     val studio: String? = null,
     @SerialName("content_rating") val contentRating: String? = null,
-    @SerialName("imdb_rating") val imdbRating: Float? = null,     // Vérification
-    @SerialName("rotten_rating") val rottenRating: Int? = null,   // Vérification
+    @SerialName("imdb_rating") val imdbRating: Float? = null,
+    @SerialName("rotten_rating") val rottenRating: Int? = null,
     @SerialName("added_at") val addedAt: String? = null,
-    @SerialName("poster_url") private val _posterUrl: String? = null,
-    @SerialName("backdrop_url") private val _backdropUrl: String? = null,
+
+    // CORRECTION IMPORTANTE : Champs publics pour permettre la création manuelle (Favoris)
+    @SerialName("poster_url") val posterPath: String? = null,
+    @SerialName("backdrop_url") val backdropPath: String? = null,
+
     val year: Int? = null,
     @SerialName("sources") val servers: List<Server>? = emptyList(),
     val seasons: List<Season>? = emptyList(),
     val hasMultipleSources: Boolean = false
 ) {
-    val posterUrl: String get() = fixUrl(_posterUrl)
-    val backdropUrl: String get() = fixUrl(_backdropUrl ?: _posterUrl)
+    // Helpers calculés
+    val posterUrl: String get() = UrlFixer.fix(posterPath)
+    val backdropUrl: String get() = UrlFixer.fix(backdropPath ?: posterPath)
     val isSeries: Boolean get() = type == "show"
-
-
-    private fun fixUrl(url: String?): String {
-        if (url.isNullOrEmpty()) return ""
-        if (url.startsWith("http")) {
-            return url.replace("localhost", "10.0.2.2").replace("127.0.0.1", "10.0.2.2")
-        }
-        val baseUrl = NetworkModule.currentBaseUrl.trimEnd('/')
-        val relativePath = url.trimStart('/')
-        return "$baseUrl/$relativePath"
-    }
 }
 
+// CORRECTION : Ajout de @Serializable sinon le scan serveur crashera
+@Serializable
 data class ServerInfo(
     val name: String,
     val url: String,
@@ -116,6 +100,28 @@ data class ServerInfo(
 
 @Serializable
 data class ScanResponse(val message: String, val status: String)
+
+// --- UTILITAIRE URL (Centralisé) ---
+object UrlFixer {
+    fun fix(url: String?): String {
+        if (url.isNullOrEmpty()) return ""
+        val currentBase = NetworkModule.currentBaseUrl.trimEnd('/')
+
+        if (url.startsWith("http")) {
+            // Remplace localhost/127.0.0.1 par l'IP réelle configurée dans l'app
+            return try {
+                val host = URI(currentBase).host ?: "10.0.2.2"
+                url.replace("localhost", "10.0.2.2")
+                    .replace("127.0.0.1", "10.0.2.2")
+                    .replace("10.0.2.2", host) // Adapte si on est sur une vraie TV
+            } catch (e: Exception) {
+                url // Fallback si l'URI est invalide
+            }
+        }
+        val relativePath = url.trimStart('/')
+        return "$currentBase/$relativePath"
+    }
+}
 
 // --- RETROFIT INTERFACE ---
 

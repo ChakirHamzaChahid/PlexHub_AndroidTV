@@ -7,7 +7,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.chakir.aggregatorhubplex.data.Movie
 import com.chakir.aggregatorhubplex.data.NetworkModule
-import com.chakir.aggregatorhubplex.data.local.AppDatabase
+import com.chakir.aggregatorhubplex.data.local.MovieDao
 import com.chakir.aggregatorhubplex.data.local.MovieEntity
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -16,19 +16,20 @@ import kotlinx.coroutines.withContext
 
 @HiltWorker
 class SyncWorker @AssistedInject constructor(
-    @Assisted context: Context,
-    @Assisted workerParams: WorkerParameters
-) : CoroutineWorker(context, workerParams) {
+    @Assisted appContext: Context,
+    @Assisted workerParams: WorkerParameters,
+    // --- CORRECTION : On injecte le DAO directement via Hilt ---
+    private val movieDao: MovieDao
+) : CoroutineWorker(appContext, workerParams) {
 
-    // On récupère la DB via le Singleton (ou Injection si Hilt est configuré pour le DAO)
-    private val database = AppDatabase.getDatabase(context)
+    // On utilise l'objet singleton NetworkModule pour l'API (c'est acceptable ici)
     private val api = NetworkModule.api
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+        // Dispatchers.IO est CRUCIAL ici pour éviter de figer l'interface (ANR)
         return@withContext try {
             Log.i("SyncWorker", "🚀 Démarrage de la synchronisation (Offline-First)...")
 
-            // On lance la synchro globale (Films + Séries mélangés par date)
             syncAllContent()
 
             Log.i("SyncWorker", "✅ Synchronisation terminée avec succès !")
@@ -41,31 +42,35 @@ class SyncWorker @AssistedInject constructor(
 
     private suspend fun syncAllContent() {
         var page = 1
-        // Taille de page augmentée pour profiter de la vitesse du nouveau backend
-        val pageSize = 500
+        val pageSize = 500 // On charge par gros blocs pour aller vite
         var hasMore = true
 
         while (hasMore) {
             Log.d("SyncWorker", "📥 Téléchargement page $page...")
 
-            // Appel API : type = null pour tout récupérer
-            val response = api.getMovies(
-                page = page,
-                size = pageSize,
-                type = null, // On veut tout (Films ET Séries)
-                sort = "added_at",
-                order = "desc",
-                search = null
-            )
+            val response = try {
+                api.getMovies(
+                    page = page,
+                    size = pageSize,
+                    type = null, // Tout récupérer
+                    sort = "added_at",
+                    order = "desc",
+                    search = null
+                )
+            } catch (e: Exception) {
+                // Si une page plante, on arrête la boucle proprement
+                Log.e("SyncWorker", "Erreur réseau page $page", e)
+                throw e
+            }
 
             if (response.isEmpty()) {
                 hasMore = false
             } else {
-                // Conversion DTO (Réseau) -> Entity (Base de données)
+                // Mapping
                 val entities = response.map { it.toEntity() }
 
-                // Sauvegarde en base (Utilisation de Upsert pour éviter les doublons)
-                database.movieDao().upsertAll(entities)
+                // Sauvegarde via le DAO injecté
+                movieDao.upsertAll(entities)
 
                 Log.d("SyncWorker", "💾 Page $page sauvegardée (${entities.size} items)")
                 page++
@@ -73,7 +78,7 @@ class SyncWorker @AssistedInject constructor(
         }
     }
 
-    // Fonction de mapping (Adaptée à votre MovieEntity)
+    // Fonction de mapping
     private fun Movie.toEntity() = MovieEntity(
         id = id,
         title = title,
@@ -89,9 +94,9 @@ class SyncWorker @AssistedInject constructor(
         description = description,
         studio = studio,
         contentRating = contentRating,
-        // Les listes complexes (servers, seasons) sont gérées par les TypeConverters de Room
         servers = servers,
         seasons = seasons,
+        // Calcul intelligent : s'il y a plus d'1 serveur, c'est du Multi-sources
         hasMultipleSources = (servers?.size ?: 0) > 1
     )
 }

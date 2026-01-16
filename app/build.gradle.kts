@@ -44,6 +44,7 @@ android {
 
     kotlinOptions {
         jvmTarget = "17"
+        freeCompilerArgs += "-opt-in=androidx.media3.common.util.UnstableApi"
     }
     packaging {
         resources {
@@ -90,6 +91,7 @@ dependencies {
     // --- ARCHITECTURE (Paging 3 + Room) ---
     implementation("androidx.paging:paging-runtime-ktx:3.3.2")
     implementation("androidx.paging:paging-compose:3.3.2")
+    implementation(libs.androidx.compose.material3)
 
     // Room
     val room_version = "2.6.1"
@@ -107,4 +109,6 @@ dependencies {
     implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
     implementation("androidx.hilt:hilt-work:1.1.0")
     ksp("androidx.hilt:hilt-compiler:1.1.0")
+    implementation("androidx.datastore:datastore-preferences:1.0.0")
+    implementation("androidx.compose.material:material-icons-extended:1.7.5")
 }

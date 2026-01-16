@@ -31,15 +31,28 @@ data class MovieEntity(
 ) {
     fun toMovie(): Movie {
         return Movie(
-            id = id, title = title, type = type, _posterUrl = posterUrl,
-            year = year, addedAt = addedAt, rating = rating,
+            id = id,
+            title = title,
+            type = type,
+
+            // CORRECTION : On utilise les nouveaux noms définis dans DataLayer.kt
+            posterPath = posterUrl,
+            backdropPath = posterUrl, // Assurez-vous aussi de mapper le backdrop si présent dans l'entity
+
+            year = year,
+            addedAt = addedAt,
+            rating = rating,
+
             // Mapping des nouveaux champs
             imdbRating = imdbRating,
             rottenRating = rottenRating,
             director = director,
             // --------------------------
+
             genres = genres,
-            description = description, studio = studio, contentRating = contentRating,
+            description = description,
+            studio = studio,
+            contentRating = contentRating,
             servers = servers ?: emptyList(),
             seasons = seasons ?: emptyList(),
             hasMultipleSources = hasMultipleSources

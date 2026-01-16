@@ -3,7 +3,9 @@ package com.chakir.aggregatorhubplex.data.local
 import androidx.paging.PagingSource
 import androidx.room.Dao
 import androidx.room.Query
+import androidx.room.RawQuery
 import androidx.room.Upsert
+import androidx.sqlite.db.SupportSQLiteQuery
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -34,6 +36,12 @@ interface MovieDao {
         sort: String,
         order: String
     ): PagingSource<Int, MovieEntity>
+
+    // --- MODIFICATION ICI : On passe en @RawQuery ---
+    // Cela permet d'envoyer une requête construite "à la main" avec tous nos OR pour les genres
+    @RawQuery(observedEntities = [MovieEntity::class])
+    fun getMoviesPagedRaw(query: SupportSQLiteQuery): PagingSource<Int, MovieEntity>
+
 
     // 2. Compteur Live
     @Query("SELECT COUNT(*) FROM movies")

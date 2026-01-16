@@ -7,14 +7,23 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 
 @Database(
-    entities = [MovieEntity::class, RemoteKeys::class],
-    version = 1,
+    entities = [
+        MovieEntity::class,
+        RemoteKeys::class,
+        FavoriteEntity::class, // <--- NOUVEAU (Table Favoris)
+        PlayHistoryEntity::class // <--- NOUVEAU (Table Historique)
+    ],
+    version = 2, // <--- VERSION INCRÉMENTÉE (Force la migration destructive)
     exportSchema = false
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun movieDao(): MovieDao
+
+    // --- NOUVEAUX DAOS ---
+    abstract fun favoriteDao(): FavoriteDao
+    abstract fun playHistoryDao(): PlayHistoryDao
 
     companion object {
         @Volatile
@@ -27,7 +36,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "plexhub_database"
                 )
-                    .fallbackToDestructiveMigration() // Si on change le schéma, on reset (pour le dev)
+                    .fallbackToDestructiveMigration() // Reset la DB si la version change (v1 -> v2)
                     .build()
                 INSTANCE = instance
                 instance

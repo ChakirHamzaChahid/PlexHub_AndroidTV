@@ -1,0 +1,42 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+  <group android:scaleX="0.7"
+      android:scaleY="0.7"
+      android:translateX="76.8"
+      android:translateY="76.8">
+    
+      <path
+          android:pathData="M0,0h512v512h-512z"
+          android:fillColor="#141414"/>
+
+      <path
+          android:pathData="M60,256 h30 q20,0 20,-20 v-20 q0,-20 -20,-20 h-30 v60 M60,196 h30 q30,0 30,30 v20 q0,30 -30,30 h-10 v40 h-20 v-120 z"
+          android:fillColor="#FFFFFF"/>
+      <path
+          android:pathData="M150,196 h20 v100 h35 v20 h-55 v-120 z"
+          android:fillColor="#FFFFFF"/>
+      <path
+          android:pathData="M220,196 h50 v20 h-30 v30 h25 v20 h-25 v30 h35 v20 h-55 v-120 z"
+          android:fillColor="#FFFFFF"/>
+      <path
+          android:pathData="M290,196 h23 l12,20 l12,-20 h23 l-25,40 l28,45 h-24 l-15,-25 l-15,25 h-24 l28,-45 z"
+          android:fillColor="#FFFFFF"/>
+
+      <path
+          android:pathData="M370,186 h110 a10,10 0 0 1 10,10 v120 a10,10 0 0 1 -10,10 h-110 a10,10 0 0 1 -10,-10 v-120 a10,10 0 0 1 10,-10 z"
+          android:fillColor="#E5A00D"/>
+
+      <path
+          android:pathData="M390,216 h15 v35 h20 v-35 h15 v80 h-15 v-30 h-20 v30 h-15 v-80 z"
+          android:fillColor="#000000"/>
+      <path
+          android:pathData="M450,216 h15 v50 q0,15 10,15 q10,0 10,-15 v-50 h15 v50 q0,30 -25,30 q-25,0 -25,-30 v-50 z"
+          android:fillColor="#000000"/>
+      <path
+          android:pathData="M510,216 h30 q15,0 15,15 v10 q0,10 -10,12 q10,2 10,12 v15 q0,16 -15,16 h-30 v-80 z M525,230 v23 h15 q5,0 5,-11 v-1 q0,-11 -5,-11 h-15 z M525,263 v23 h15 q5,0 5,-11 v-1 q0,-11 -5,-11 h-15 z"
+          android:fillColor="#000000"/>
+  </group>
+</vector>

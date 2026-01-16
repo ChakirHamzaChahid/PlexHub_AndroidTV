@@ -3,8 +3,8 @@ package com.chakir.aggregatorhubplex.ui.screens
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chakir.aggregatorhubplex.data.Movie
-import com.chakir.aggregatorhubplex.data.NetworkModule
 import com.chakir.aggregatorhubplex.data.repository.FavoriteRepository
+import com.chakir.aggregatorhubplex.data.repository.MediaRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,6 +15,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class DetailViewModel @Inject constructor(
+    private val mediaRepository: MediaRepository, // <-- INJECTION DU REPOSITORY PRINCIPAL
     private val favoriteRepository: FavoriteRepository
 ) : ViewModel() {
 
@@ -27,31 +28,29 @@ class DetailViewModel @Inject constructor(
     private val _isFavorite = MutableStateFlow(false)
     val isFavorite: StateFlow<Boolean> = _isFavorite
 
-    private var favoriteObservationJob: Job? = null
+    private var dataJob: Job? = null
+    private var favoriteJob: Job? = null
 
     fun loadMovie(movieId: String) {
-        // On annule l'ancienne observation pour éviter les fuites si on charge un nouveau film
-        favoriteObservationJob?.cancel()
+        // Annuler les anciens jobs pour éviter les fuites
+        dataJob?.cancel()
+        favoriteJob?.cancel()
 
-        // COROUTINE 1 : Observe en continu le statut de favori
-        favoriteObservationJob = viewModelScope.launch {
+        // COROUTINE 1 : Observe le statut de favori
+        favoriteJob = viewModelScope.launch {
             favoriteRepository.isFavorite(movieId).collectLatest { isFav ->
                 _isFavorite.value = isFav
             }
         }
 
-        // COROUTINE 2 : Charge les données du film (opération unique)
-        viewModelScope.launch {
-            _isLoading.value = true
-            try {
-                val fetchedMovie = NetworkModule.api.getMovieDetail(movieId)
-                _movie.value = fetchedMovie
-            } catch (e: Exception) {
-                e.printStackTrace()
-                // Gérer l'erreur dans l'UI si nécessaire
-            } finally {
-                // Cette coroutine se termine, donc le finally est toujours atteint
-                _isLoading.value = false
+        // COROUTINE 2 : Observe les données du film (Cache & Network)
+        dataJob = viewModelScope.launch {
+            mediaRepository.getMovieDetail(movieId).collectLatest { movieData ->
+                // Le premier chargement est terminé dès qu'on reçoit des données (même du cache)
+                if (movieData != null) {
+                    _isLoading.value = false
+                    _movie.value = movieData
+                }
             }
         }
     }
@@ -59,7 +58,6 @@ class DetailViewModel @Inject constructor(
     fun toggleFavorite() {
         val currentMovie = _movie.value ?: return
         viewModelScope.launch {
-            // La mise à jour de l'UI se fait automatiquement via la coroutine d'observation
             if (_isFavorite.value) {
                 favoriteRepository.removeFromFavorites(currentMovie.id)
             } else {

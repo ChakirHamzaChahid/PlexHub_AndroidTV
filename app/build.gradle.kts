@@ -2,10 +2,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
-    // MISE A JOUR : Doit correspondre à votre version Kotlin (2.0.21)
     id("org.jetbrains.kotlin.plugin.serialization") version "2.0.21"
-    // AJOUT IMPORTANT : KSP pour Room (Version exacte pour Kotlin 2.0.21)
-    // Remove the version numbers from these lines:
     id("com.google.devtools.ksp")
     id("com.google.dagger.hilt.android")
 }
@@ -21,8 +18,7 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        // Attention : Pour l'émulateur c'est 10.0.2.2, pour une vraie TV c'est l'IP de votre PC (ex: 192.168.1.X)
-        buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8000/\"")
+        buildConfigField("String", "API_BASE_URL", "\"http://192.168.0.175:8186/\"")
     }
 
     buildTypes {
@@ -46,6 +42,7 @@ android {
         jvmTarget = "17"
         freeCompilerArgs += "-opt-in=androidx.media3.common.util.UnstableApi"
     }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -91,14 +88,13 @@ dependencies {
     // --- ARCHITECTURE (Paging 3 + Room) ---
     implementation("androidx.paging:paging-runtime-ktx:3.3.2")
     implementation("androidx.paging:paging-compose:3.3.2")
-    implementation(libs.androidx.compose.material3)
 
     // Room
     val room_version = "2.6.1"
     implementation("androidx.room:room-runtime:$room_version")
     implementation("androidx.room:room-ktx:$room_version")
     implementation("androidx.room:room-paging:$room_version")
-    ksp("androidx.room:room-compiler:$room_version") // Une seule fois suffit !
+    ksp("androidx.room:room-compiler:$room_version") // ESSENTIEL POUR FTS5
 
     // WorkManager
     implementation("androidx.work:work-runtime-ktx:2.9.0")

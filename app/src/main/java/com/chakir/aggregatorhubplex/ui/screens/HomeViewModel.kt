@@ -8,7 +8,14 @@ import com.chakir.aggregatorhubplex.data.Movie
 import com.chakir.aggregatorhubplex.data.repository.MediaRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
 // --- ÉTAT ET ENUMS ---
@@ -40,14 +47,27 @@ class HomeViewModel @Inject constructor(
     private val _filterGenreLabel = MutableStateFlow<String>("Tout")
 
     // --- ETATS EXPOSÉS ---
-    val currentFilterType: StateFlow<String?> = _filterType.asStateFlow()
-    val currentSortOption: StateFlow<SortOption> = _sortOption.asStateFlow()
-    val currentSearchQuery: StateFlow<String?> = _searchQuery.asStateFlow()
-    val currentFilterGenre: StateFlow<String> = _filterGenreLabel.asStateFlow()
+    val currentFilterType: StateFlow<String?> = _filterType
+    val currentSortOption: StateFlow<SortOption> = _sortOption
+    val currentSearchQuery: StateFlow<String?> = _searchQuery
+    val currentFilterGenre: StateFlow<String> = _filterGenreLabel
 
-    // Appel simplifié au repo pour le compteur
-    val totalCount: StateFlow<Int> = repository.getTotalCount()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val featuredMovies: StateFlow<List<Movie>> = currentFilterType.flatMapLatest { type ->
+        val limit = if (type == "show") 30 else 20
+        repository.getTopRated(type, limit)
+    }.map { movies ->
+        movies.shuffled().take(5)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val totalCount: StateFlow<Int> = combine(
+        _searchQuery, _filterType, _filterGenreLabel
+    ) { query, type, genre ->
+        Triple(query, type, genre)
+    }.flatMapLatest { (query, type, genre) ->
+        repository.getFilteredCount(query, type, genre)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val moviesPagingFlow: Flow<PagingData<Movie>> = combine(

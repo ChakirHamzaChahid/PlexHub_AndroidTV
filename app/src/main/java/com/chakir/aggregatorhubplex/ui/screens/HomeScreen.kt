@@ -1,26 +1,52 @@
 package com.chakir.aggregatorhubplex.ui.screens
 
-import androidx.activity.compose.BackHandler
-import androidx.compose.animation.*
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.*
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.runtime.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,24 +61,22 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.zIndex // <--- Import important pour l'effet "pop-out"
+import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemContentType
 import androidx.paging.compose.itemKey
-import androidx.tv.material3.*
+import androidx.tv.material3.ClickableSurfaceDefaults
+import androidx.tv.material3.ExperimentalTvMaterial3Api
+import androidx.tv.material3.Surface
 import coil.compose.AsyncImage
-import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.chakir.aggregatorhubplex.data.GenreGrouping
 import com.chakir.aggregatorhubplex.data.Movie
-import com.chakir.aggregatorhubplex.ui.components.HeroBanner
+import com.chakir.aggregatorhubplex.ui.components.FeaturedCarousel
 import com.chakir.aggregatorhubplex.ui.components.SkeletonCard
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
-// Couleurs
 val PlexAccent = Color(0xFFE5A00D)
 val NetflixBlack = Color(0xFF141414)
 val DarkSurface = Color(0xFF1F1F1F)
@@ -66,12 +90,10 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val movies = viewModel.moviesPagingFlow.collectAsLazyPagingItems()
+    val featuredMovies by viewModel.featuredMovies.collectAsState()
     val totalCount by viewModel.totalCount.collectAsState()
 
-    // États UI
     var isSortMenuOpen by remember { mutableStateOf(false) }
-
-    // États Filtres
     var currentSortLabel by remember { mutableStateOf(SortOption.ADDED_DESC.label) }
     val currentType by viewModel.currentFilterType.collectAsState()
     val currentGenre by viewModel.currentFilterGenre.collectAsState()
@@ -81,15 +103,10 @@ fun HomeScreen(
 
     val sortMenuFocusRequester = remember { FocusRequester() }
 
-    // Scroll Reset logique
     LaunchedEffect(filterVersion) {
         if (filterVersion > 0) gridState.scrollToItem(0)
     }
 
-    // Récupération du film vedette (sans déclencher de fetch réseau inutile)
-    val featuredMovie = movies.itemSnapshotList.items.firstOrNull()
-
-    // Titre dynamique
     val displayTitle = when {
         !currentGenre.equals("Tout", ignoreCase = true) -> currentGenre
         currentType == "movie" -> "Films récents"
@@ -97,8 +114,7 @@ fun HomeScreen(
         else -> "Tout voir"
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-
+    Box(modifier = Modifier.fillMaxSize().background(NetflixBlack)) {
         LazyVerticalGrid(
             state = gridState,
             columns = GridCells.Adaptive(minSize = 120.dp),
@@ -107,10 +123,7 @@ fun HomeScreen(
             contentPadding = PaddingValues(bottom = 48.dp),
             modifier = Modifier.fillMaxSize()
         ) {
-
-            // CAS 1 : CHARGEMENT INITIAL (Skeletons)
             if (movies.loadState.refresh is LoadState.Loading && movies.itemCount == 0) {
-                // Item 1 : Faux Banner
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     Box(
                         modifier = Modifier
@@ -121,7 +134,6 @@ fun HomeScreen(
                             .background(DarkSurface)
                     )
                 }
-                // Item 2 : Faux Header
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     Column(modifier = Modifier.padding(horizontal = 48.dp, vertical = 16.dp)) {
                         Box(modifier = Modifier.size(200.dp, 30.dp).background(DarkSurface, RoundedCornerShape(4.dp)))
@@ -133,31 +145,20 @@ fun HomeScreen(
                         }
                     }
                 }
-                // Item 3 : Fausse Grille
                 items(20) {
                     Box(modifier = Modifier.padding(horizontal = 0.dp)) {
                         SkeletonCard()
                     }
                 }
-            }
-            // CAS 2 : CONTENU CHARGÉ
-            else {
-                // --- HERO BANNER ---
-                if (featuredMovie != null) {
+            } else {
+                if (featuredMovies.isNotEmpty()) {
                     item(span = { GridItemSpan(maxLineSpan) }) {
-                        HeroBanner(
-                            movie = featuredMovie,
-                            onPlayClick = { onMovieClick(featuredMovie) },
-                            onDetailsClick = { onMovieClick(featuredMovie) },
-                            modifier = Modifier.padding(bottom = 24.dp)
-                        )
+                        FeaturedCarousel(movies = featuredMovies, onMovieClick = onMovieClick, modifier = Modifier.padding(bottom = 24.dp))
                     }
                 }
 
-                // --- HEADER (Filtres) ---
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     Column(modifier = Modifier.padding(horizontal = 48.dp)) {
-                        // Titre + Tri
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -179,20 +180,18 @@ fun HomeScreen(
                                 )
                             }
 
-                            Button(
+                            Surface(
                                 onClick = { isSortMenuOpen = true },
-                                colors = ButtonDefaults.colors(containerColor = Color.Transparent, contentColor = TextGrey, focusedContainerColor = DarkSurface, focusedContentColor = TextWhite),
-                                shape = ButtonDefaults.shape(shape = RoundedCornerShape(4.dp)),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                                colors = ClickableSurfaceDefaults.colors(containerColor = Color.Transparent, contentColor = TextGrey, focusedContainerColor = DarkSurface, focusedContentColor = TextWhite),
+                                shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(4.dp)),
                             ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
                                     Text(text = currentSortLabel.substringBefore(" "), fontSize = 14.sp, fontWeight = FontWeight.Bold)
                                     Icon(Icons.Default.ArrowDropDown, contentDescription = null)
                                 }
                             }
                         }
 
-                        // Genres
                         LazyRow(
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                             contentPadding = PaddingValues(bottom = 16.dp)
@@ -208,7 +207,6 @@ fun HomeScreen(
                     }
                 }
 
-                // --- GRILLE ---
                 items(
                     count = movies.itemCount,
                     key = movies.itemKey { it.id },
@@ -216,14 +214,12 @@ fun HomeScreen(
                 ) { index ->
                     val movie = movies[index]
                     if (movie != null) {
-                        // Pas de padding horizontal ici pour laisser MovieCard gérer son scale
                         Box(modifier = Modifier.padding(0.dp)) {
                             MovieCard(movie = movie, onClick = { onMovieClick(movie) })
                         }
                     }
                 }
 
-                // Loader fin de liste
                 if (movies.loadState.append is LoadState.Loading) {
                     item(span = { GridItemSpan(maxLineSpan) }) {
                         Box(modifier = Modifier.height(100.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -234,7 +230,6 @@ fun HomeScreen(
             }
         }
 
-        // --- OVERLAY TRI ---
         AnimatedVisibility(visible = isSortMenuOpen, enter = fadeIn(), exit = fadeOut()) {
             Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.8f)).clickable { isSortMenuOpen = false }, contentAlignment = Alignment.CenterEnd) {
                 Column(modifier = Modifier.fillMaxHeight().width(350.dp).background(DarkSurface).padding(32.dp), horizontalAlignment = Alignment.Start) {
@@ -258,8 +253,6 @@ fun HomeScreen(
         }
     }
 }
-
-// --- COMPOSANTS UI HELPERS ---
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
@@ -300,7 +293,6 @@ fun MovieCard(movie: Movie, onClick: () -> Unit) {
     val isFocused by interactionSource.collectIsFocusedAsState()
     val context = LocalContext.current
 
-    // ANIMATION : Effet "Ressort" + Scale 1.1x
     val scale by animateFloatAsState(
         targetValue = if (isFocused) 1.1f else 1f,
         animationSpec = spring(
@@ -315,30 +307,27 @@ fun MovieCard(movie: Movie, onClick: () -> Unit) {
         modifier = Modifier
             .width(110.dp)
             .scale(scale)
-            .zIndex(if (isFocused) 10f else 1f) // CRUCIAL : Passe au premier plan quand focus
+            .zIndex(if (isFocused) 10f else 1f)
     ) {
-        Box(
+        Surface(
+            onClick = { onClick() },
+            shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(8.dp)),
             modifier = Modifier
                 .height(165.dp)
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(8.dp)) // Coins 8dp
                 .focusable(interactionSource = interactionSource)
-                .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
         ) {
             AsyncImage(
                 model = ImageRequest.Builder(context)
                     .data(movie.posterUrl)
                     .crossfade(true)
-                    .diskCachePolicy(CachePolicy.ENABLED)
-                    .memoryCachePolicy(CachePolicy.ENABLED)
-                    .size(300, 450) // Limite mémoire importante
+                    .size(300, 450)
                     .build(),
                 contentDescription = movie.title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
 
-            // Bordure BLANCHE au focus
             if (isFocused) {
                 Box(
                     modifier = Modifier
@@ -363,7 +352,6 @@ fun MovieCard(movie: Movie, onClick: () -> Unit) {
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Titre ORANGE au focus
         Text(
             text = movie.title,
             style = MaterialTheme.typography.bodySmall,

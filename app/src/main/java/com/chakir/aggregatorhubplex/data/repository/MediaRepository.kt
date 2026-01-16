@@ -30,4 +30,6 @@ interface MediaRepository {
      * Récupère les détails d'un film en utilisant une stratégie "cache-then-network".
      */
     fun getMovieDetail(movieId: String): Flow<Movie?>
+
+    suspend fun getAvailableGenres(): List<String>
 }

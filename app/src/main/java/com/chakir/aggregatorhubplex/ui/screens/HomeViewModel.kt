@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
+import com.chakir.aggregatorhubplex.data.GenreGrouping
 import com.chakir.aggregatorhubplex.data.Movie
 import com.chakir.aggregatorhubplex.data.repository.MediaRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -38,19 +39,21 @@ enum class SortOption(val label: String, val apiValue: String, val orderValue: S
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val repository: MediaRepository // ON INJECTE LE REPO, PLUS LA DATABASE
+    private val repository: MediaRepository
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow<String?>(null)
     private val _filterType = MutableStateFlow<String?>(null)
     private val _sortOption = MutableStateFlow(SortOption.ADDED_DESC)
-    private val _filterGenreLabel = MutableStateFlow<String>("Tout")
+    private val _filterGenreLabel = MutableStateFlow("Tout")
 
-    // --- ETATS EXPOSÉS ---
+    // --- ETATS EXPOSÉS -- -
     val currentFilterType: StateFlow<String?> = _filterType
     val currentSortOption: StateFlow<SortOption> = _sortOption
     val currentSearchQuery: StateFlow<String?> = _searchQuery
     val currentFilterGenre: StateFlow<String> = _filterGenreLabel
+    val genreLabels: List<String> = GenreGrouping.UI_LABELS
+
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val featuredMovies: StateFlow<List<Movie>> = currentFilterType.flatMapLatest { type ->
@@ -75,7 +78,6 @@ class HomeViewModel @Inject constructor(
     ) { query, type, genreLabel, sortOpt ->
         QueryConfig(query, type, genreLabel, sortOpt)
     }.flatMapLatest { config ->
-        // LE VIEWMODEL NE CONNAIT PLUS LE SQL, IL DÉLÈGUE AU REPO
         repository.getMediaPaged(
             search = config.query,
             type = config.type,

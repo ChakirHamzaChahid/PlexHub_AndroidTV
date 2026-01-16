@@ -2,7 +2,6 @@ package com.chakir.aggregatorhubplex.ui.screens
 
 import android.content.Intent
 import android.net.Uri
-import android.util.Log
 import android.widget.Toast
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
@@ -139,11 +138,11 @@ fun DetailScreen(
                         text = currentMovie.title.uppercase(),
                         style = MaterialTheme.typography.displayLarge.copy(
                             fontWeight = FontWeight.Black,
-                            fontSize = 56.sp,
+                            fontSize = 42.sp,
                             letterSpacing = (-1).sp
                         ),
                         color = MaterialTheme.colorScheme.onBackground,
-                        lineHeight = 60.sp
+                        lineHeight = 46.sp
                     )
 
                     // Sous-titre

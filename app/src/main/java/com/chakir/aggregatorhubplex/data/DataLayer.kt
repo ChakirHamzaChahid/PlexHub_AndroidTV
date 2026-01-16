@@ -27,7 +27,9 @@ data class MovieListItem(
     @SerialName("poster_url") val posterPath: String? = null,
     val rating: Float? = null,
     @SerialName("imdb_rating") val imdbRating: Float? = null,
-    val hasMultipleSources: Boolean = false
+    val hasMultipleSources: Boolean = false,
+    val genres: List<String>? = emptyList(),
+    @SerialName("added_at") val addedAt: String? = null
 )
 
 // --- MODELS (Utilisés par l'UI et le détail) ---

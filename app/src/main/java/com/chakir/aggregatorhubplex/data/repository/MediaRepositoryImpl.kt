@@ -66,6 +66,14 @@ class MediaRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun getAvailableGenres(): List<String> {
+        return database.movieDao().getAllGenres()
+            .flatMap { it.split(",") }
+            .map { it.trim() }
+            .distinct()
+            .sorted()
+    }
+
     private fun buildRawQuery(
         search: String?,
         type: String?,

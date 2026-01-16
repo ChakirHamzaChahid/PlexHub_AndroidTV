@@ -88,14 +88,13 @@ class SyncWorker @AssistedInject constructor(
         year = year,
         rating = rating,
         imdbRating = imdbRating,
+        genres = genres,             // CORRIGÉ
+        addedAt = addedAt,           // CORRIGÉ
         hasMultipleSources = hasMultipleSources,
 
-        // Les champs suivants n'existent pas dans le DTO de liste, ils sont donc initialisés à null/vide.
-        // Ils seront chargés à la demande depuis l'endpoint de détail si nécessaire.
-        addedAt = null,
+        // Les champs suivants sont spécifiques à la vue détaillée et initialisés à null.
         rottenRating = null,
         director = null,
-        genres = null,
         description = null,
         studio = null,
         contentRating = null,

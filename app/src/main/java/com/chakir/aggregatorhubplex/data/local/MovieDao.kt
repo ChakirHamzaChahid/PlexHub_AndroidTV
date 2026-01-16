@@ -45,6 +45,9 @@ interface MovieDao {
     """)
     fun getTopRated(type: String?, limit: Int): Flow<List<MovieEntity>>
 
+    @Query("SELECT genres FROM movies")
+    suspend fun getAllGenres(): List<String>
+
     // --- Opérations d'écriture ---
 
     @Upsert

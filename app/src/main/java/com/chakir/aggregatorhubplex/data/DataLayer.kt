@@ -16,13 +16,26 @@ import retrofit2.http.Query
 import java.net.URI
 import java.util.concurrent.TimeUnit
 
-// --- MODELS ---
+// --- DTO (Data Transfer Object) pour la liste ---
+
+@Serializable
+data class MovieListItem(
+    val id: String,
+    val title: String = "Sans titre",
+    val type: String = "movie",
+    val year: Int? = null,
+    @SerialName("poster_url") val posterPath: String? = null,
+    val rating: Float? = null,
+    @SerialName("imdb_rating") val imdbRating: Float? = null,
+    val hasMultipleSources: Boolean = false
+)
+
+// --- MODELS (Utilisés par l'UI et le détail) ---
 
 @Serializable
 data class Server(
     @SerialName("server_name") val name: String = "Inconnu",
     @SerialName("stream_url") val url: String = "",
-    // CORRECTION : Renommé en public pour pouvoir être instancié si besoin
     @SerialName("m3u_url") val rawM3uUrl: String? = null,
     @SerialName("resolution") val resolution: String? = "SD",
     @SerialName("plex_deeplink") val plexDeepLink: String? = null,
@@ -45,7 +58,6 @@ data class Episode(
     @SerialName("thumb_url") val thumbUrl: String? = null,
     @SerialName("summary") val overview: String? = null,
     @SerialName("sources") val servers: List<Server>? = emptyList(),
-    // CORRECTION : Renommé en public (rawStillUrl)
     @SerialName("still_url") val rawStillUrl: String? = null
 ) {
     val stillUrl: String? get() = rawStillUrl?.let { UrlFixer.fix(it) }
@@ -72,23 +84,18 @@ data class Movie(
     @SerialName("imdb_rating") val imdbRating: Float? = null,
     @SerialName("rotten_rating") val rottenRating: Int? = null,
     @SerialName("added_at") val addedAt: String? = null,
-
-    // CORRECTION IMPORTANTE : Champs publics pour permettre la création manuelle (Favoris)
     @SerialName("poster_url") val posterPath: String? = null,
     @SerialName("backdrop_url") val backdropPath: String? = null,
-
     val year: Int? = null,
     @SerialName("sources") val servers: List<Server>? = emptyList(),
     val seasons: List<Season>? = emptyList(),
     val hasMultipleSources: Boolean = false
 ) {
-    // Helpers calculés
     val posterUrl: String get() = UrlFixer.fix(posterPath)
     val backdropUrl: String get() = UrlFixer.fix(backdropPath ?: posterPath)
     val isSeries: Boolean get() = type == "show"
 }
 
-// CORRECTION : Ajout de @Serializable sinon le scan serveur crashera
 @Serializable
 data class ServerInfo(
     val name: String,
@@ -108,14 +115,13 @@ object UrlFixer {
         val currentBase = NetworkModule.currentBaseUrl.trimEnd('/')
 
         if (url.startsWith("http")) {
-            // Remplace localhost/127.0.0.1 par l'IP réelle configurée dans l'app
             return try {
                 val host = URI(currentBase).host ?: "10.0.2.2"
                 url.replace("localhost", "10.0.2.2")
                     .replace("127.0.0.1", "10.0.2.2")
-                    .replace("10.0.2.2", host) // Adapte si on est sur une vraie TV
+                    .replace("10.0.2.2", host)
             } catch (e: Exception) {
-                url // Fallback si l'URI est invalide
+                url
             }
         }
         val relativePath = url.trimStart('/')
@@ -134,7 +140,7 @@ interface MovieApiService {
         @Query("sort") sort: String?,
         @Query("order") order: String?,
         @Query("search") search: String?
-    ): List<Movie>
+    ): List<MovieListItem> // <-- CHANGEMENT CRUCIAL
 
     @GET("/api/movies/{id}")
     suspend fun getMovieDetail(@Path("id") id: String): Movie

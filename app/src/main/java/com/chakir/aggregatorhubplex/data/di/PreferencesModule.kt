@@ -9,10 +9,12 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
+/** Module Dagger/Hilt fournissant les gérants de préférences (DataStore/SharedPreferences). */
 @Module
 @InstallIn(SingletonComponent::class)
 object PreferencesModule {
 
+    /** Fournit l'instance singleton de [PreferencesManager]. */
     @Provides
     @Singleton
     fun providePreferencesManager(@ApplicationContext context: Context): PreferencesManager {

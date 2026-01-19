@@ -8,6 +8,10 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 
+/**
+ * Classe utilitaire pour la découverte de serveurs sur le réseau local (mDNS/NSD). Permet de
+ * trouver automatiquement le serveur backend ou de formater une IP saisie manuellement.
+ */
 class NetworkDiscovery(context: Context) {
 
     private val nsdManager = context.getSystemService(Context.NSD_SERVICE) as NsdManager
@@ -15,48 +19,61 @@ class NetworkDiscovery(context: Context) {
     private val SERVICE_NAME_PREFIX = "plexhub"
 
     /**
-     * Découverte automatique via mDNS (existant)
+     * Lance la découverte automatique des services mDNS. Retourne un flux d'URLs potentielles (ex:
+     * "http://192.168.1.15:8186/").
      */
     fun discoverServer(): Flow<String> = callbackFlow {
-        val discoveryListener = object : NsdManager.DiscoveryListener {
-            override fun onDiscoveryStarted(regType: String) {
-                Log.d("NSD", "Découverte démarrée")
-            }
+        val discoveryListener =
+                object : NsdManager.DiscoveryListener {
+                    override fun onDiscoveryStarted(regType: String) {
+                        Log.d("NSD", "Découverte démarrée")
+                    }
 
-            override fun onServiceFound(service: NsdServiceInfo) {
-                if (service.serviceName.contains(SERVICE_NAME_PREFIX, ignoreCase = true)) {
-                    nsdManager.resolveService(service, object : NsdManager.ResolveListener {
-                        override fun onResolveFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
-                            Log.e("NSD", "Échec résolution: $errorCode")
-                        }
+                    override fun onServiceFound(service: NsdServiceInfo) {
+                        if (service.serviceName.contains(SERVICE_NAME_PREFIX, ignoreCase = true)) {
+                            nsdManager.resolveService(
+                                    service,
+                                    object : NsdManager.ResolveListener {
+                                        override fun onResolveFailed(
+                                                serviceInfo: NsdServiceInfo,
+                                                errorCode: Int
+                                        ) {
+                                            Log.e("NSD", "Échec résolution: $errorCode")
+                                        }
 
-                        override fun onServiceResolved(serviceInfo: NsdServiceInfo) {
-                            val host = serviceInfo.host.hostAddress
-                            val port = serviceInfo.port
-                            val url = "http://$host:$port/"
-                            trySend(url)
+                                        override fun onServiceResolved(
+                                                serviceInfo: NsdServiceInfo
+                                        ) {
+                                            val host = serviceInfo.host.hostAddress
+                                            val port = serviceInfo.port
+                                            val url = "http://$host:$port/"
+                                            trySend(url)
+                                        }
+                                    }
+                            )
                         }
-                    })
+                    }
+
+                    override fun onServiceLost(service: NsdServiceInfo) = Unit
+                    override fun onDiscoveryStopped(serviceType: String) = Unit
+                    override fun onStartDiscoveryFailed(serviceType: String, errorCode: Int) {
+                        nsdManager.stopServiceDiscovery(this)
+                    }
+
+                    override fun onStopDiscoveryFailed(serviceType: String, errorCode: Int) {
+                        nsdManager.stopServiceDiscovery(this)
+                    }
                 }
-            }
-
-            override fun onServiceLost(service: NsdServiceInfo) = Unit
-            override fun onDiscoveryStopped(serviceType: String) = Unit
-            override fun onStartDiscoveryFailed(serviceType: String, errorCode: Int) {
-                nsdManager.stopServiceDiscovery(this)
-            }
-            override fun onStopDiscoveryFailed(serviceType: String, errorCode: Int) {
-                nsdManager.stopServiceDiscovery(this)
-            }
-        }
 
         nsdManager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, discoveryListener)
         awaitClose { nsdManager.stopServiceDiscovery(discoveryListener) }
     }
 
     /**
-     * NOUVEAU : Valide et formate une saisie manuelle.
-     * Supporte : "192.168.0.175" ou "192.168.0.175:8186" ou "http://..."
+     * Valide et formate une adresse serveur saisie manuellement par l'utilisateur. Gère les formats
+     * IP simples, avec port, avec http/https, etc.
+     * @param input L'entrée utilisateur (ex: "192.168.1.50").
+     * @return L'URL complète et valide, ou null si l'entrée est vide.
      */
     fun formatManualAddress(input: String): String? {
         var address = input.trim()

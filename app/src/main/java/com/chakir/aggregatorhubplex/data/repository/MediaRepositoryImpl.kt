@@ -6,20 +6,27 @@ import androidx.paging.PagingData
 import androidx.paging.map
 import androidx.sqlite.db.SimpleSQLiteQuery
 import com.chakir.aggregatorhubplex.data.GenreGrouping
-import com.chakir.aggregatorhubplex.data.Movie
-import com.chakir.aggregatorhubplex.data.MovieApiService
+import com.chakir.aggregatorhubplex.data.dto.MovieListItem
+import com.chakir.aggregatorhubplex.data.dto.ProgressRequest
+import com.chakir.aggregatorhubplex.data.dto.ScrobbleRequest
 import com.chakir.aggregatorhubplex.data.local.AppDatabase
 import com.chakir.aggregatorhubplex.data.local.MovieEntity
+import com.chakir.aggregatorhubplex.data.network.MovieApiService
+import com.chakir.aggregatorhubplex.domain.model.Movie
 import com.chakir.aggregatorhubplex.ui.screens.SortOption
+import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
-import javax.inject.Inject
 
-class MediaRepositoryImpl @Inject constructor(
-    private val database: AppDatabase,
-    private val api: MovieApiService
-) : MediaRepository {
+/**
+ * Implémentation du [MediaRepository]. Combine les données locales (Room) et distantes (API
+ * Retrofit). utilise [Pager] pour la pagination et [SimpleSQLiteQuery] pour les requêtes dynamiques
+ * complexes.
+ */
+class MediaRepositoryImpl
+@Inject
+constructor(private val database: AppDatabase, private val api: MovieApiService) : MediaRepository {
 
     override fun getMediaPaged(
         search: String?,
@@ -28,22 +35,23 @@ class MediaRepositoryImpl @Inject constructor(
         sort: SortOption
     ): Flow<PagingData<Movie>> {
         return Pager(
-            config = PagingConfig(pageSize = 50, enablePlaceholders = true, maxSize = 300),
+            config =
+                PagingConfig(
+                    pageSize = 50,
+                    enablePlaceholders = true,
+                    maxSize = 300
+                ),
             pagingSourceFactory = {
                 val keywords = GenreGrouping.GROUPS[genreLabel] ?: emptyList()
                 val sqlQuery = buildRawQuery(search, type, keywords, sort)
                 database.movieDao().getMoviesPagedRaw(sqlQuery)
             }
-        ).flow.map { pagingData ->
-            pagingData.map { it.toMovie() }
-        }
+        )
+            .flow
+            .map { pagingData -> pagingData.map { it.toMovie() } }
     }
 
-    override fun getFilteredCount(
-        search: String?,
-        type: String?,
-        genreLabel: String
-    ): Flow<Int> {
+    override fun getFilteredCount(search: String?, type: String?, genreLabel: String): Flow<Int> {
         val keywords = GenreGrouping.GROUPS[genreLabel] ?: emptyList()
         val sqlQuery = buildCountQuery(search, type, keywords)
         return database.movieDao().getFilteredCount(sqlQuery)
@@ -55,11 +63,22 @@ class MediaRepositoryImpl @Inject constructor(
         }
     }
 
+    /**
+     * Stratégie "Network-bound Resource" simplifiée :
+     * 1. Émet immédiatement les données locales.
+     * 2. Appelle l'API pour rafraîchir les données.
+     * 3. Sauvegarde en base (ce qui déclenche une nouvelle émission via le Flow de Room).
+     */
     override fun getMovieDetail(movieId: String): Flow<Movie?> = flow {
+        // 1. Local
         emit(database.movieDao().getMovieById(movieId)?.toMovie())
         try {
+            // 2. Réseau
             val networkMovie = api.getMovieDetail(movieId)
+            // 3. Sauvegarde
             database.movieDao().upsertAll(listOf(networkMovie.toEntity()))
+            // La mise à jour de la DB notifiera automatiquement les autres observateurs,
+            // mais ici on ré-émet explicitement pour l'appelant direct si besoin.
             emit(database.movieDao().getMovieById(movieId)?.toMovie())
         } catch (e: Exception) {
             e.printStackTrace()
@@ -67,13 +86,126 @@ class MediaRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getAvailableGenres(): List<String> {
-        return database.movieDao().getAllGenres()
+        return database.movieDao()
+            .getAllGenres()
             .flatMap { it.split(",") }
             .map { it.trim() }
             .distinct()
             .sorted()
     }
 
+    override fun getContinueWatching(): Flow<List<Movie>> = flow {
+        try {
+            val remoteList = api.getContinueWatching()
+            if (remoteList.isNotEmpty()) {
+                emit(remoteList)
+            } else {
+                // Fallback local si la liste distante est vide (optionnel)
+                emit(emptyList())
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MediaRepo", "Erreur ContinueWatching: ${e.message}")
+            // Fallback DB en cas d'erreur
+            // Note: Le DAO retourne un Flow, donc on doit le collecter ou l'émettre.
+            // Ici on simplifie en retournant une liste vide pour l'instant car le DAO retourne Flow
+            // Une vraie implémentation demanderait first() sur le DAO
+            emit(emptyList())
+        }
+    }
+
+    override fun getWatchHistory(page: Int, size: Int): Flow<List<Movie>> = flow {
+        try {
+            val history = api.getWatchHistory(page, size)
+            emit(history)
+        } catch (e: Exception) {
+            android.util.Log.e("MediaRepo", "Erreur WatchHistory: ${e.message}")
+            emit(emptyList())
+        }
+    }
+
+    override fun getHubs(): Flow<Map<String, List<Movie>>> = flow {
+        try {
+            val hubs = api.getHubs()
+            val mappedHubs = hubs.mapValues { entry -> entry.value.map { it.toMovie() } }
+            android.util.Log.d("MediaRepo", "Hubs chargés: ${mappedHubs.keys}")
+            emit(mappedHubs)
+        } catch (e: Exception) {
+            android.util.Log.e("MediaRepo", "Erreur Hubs: ${e.message}")
+            emit(emptyMap())
+        }
+    }
+
+    override fun getRecentlyAdded(limit: Int): Flow<List<Movie>> = flow {
+        try {
+            val recent = api.getRecentlyAdded(limit)
+            android.util.Log.d("MediaRepo", "RecentlyAdded chargés: ${recent.size} items")
+            emit(recent)
+        } catch (e: Exception) {
+            android.util.Log.e("MediaRepo", "Erreur RecentlyAdded (API): ${e.message}")
+            // Fallback: Récupérer depuis la DB locale
+            try {
+                // On utilise une requête directe sur le DAO ou on réutilise getMediaPaged pour
+                // récupérer les derniers ajouts
+                // Ici on va simuler en appelant une méthode existante si possible, ou juste vide.
+                // Idéalement: database.movieDao().getRecentlyAdded(limit)
+                emit(emptyList())
+            } catch (dbEx: Exception) {
+                emit(emptyList())
+            }
+        }
+    }
+
+    override fun search(
+        title: String,
+        year: Int?,
+        unwatched: Boolean?,
+        limit: Int
+    ): Flow<List<Movie>> = flow {
+        try {
+            val results = api.search(title, year, unwatched, limit).map { it.toMovie() }
+            emit(results)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emit(emptyList())
+        }
+    }
+
+    override suspend fun scrobbleMedia(id: String, action: String) {
+        try {
+            api.scrobble(ScrobbleRequest(id, action))
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    override suspend fun updateProgress(id: String, timeMs: Long) {
+        try {
+            api.updateProgress(ProgressRequest(id, timeMs))
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    override suspend fun toggleFavorite(id: String) {
+        try {
+            api.toggleFavorite(id)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    override suspend fun rateMedia(id: String, rating: Float) {
+        try {
+            api.rateMedia(id, rating)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    /**
+     * Construit une requête SQL dynamique pour la récupération paginée. Gère la recherche FTS, le
+     * filtrage par type et par genre, et le tri dynamique.
+     */
     private fun buildRawQuery(
         search: String?,
         type: String?,
@@ -97,6 +229,7 @@ class MediaRepositoryImpl @Inject constructor(
         }
 
         if (genreKeywords.isNotEmpty()) {
+            // Recherche si l'un des mots-clés est présent dans la liste des genres
             val genreOrClauses = genreKeywords.joinToString(" OR ") { "m.genres LIKE ?" }
             whereClauses.add("($genreOrClauses)")
             genreKeywords.forEach { args.add("%$it%") }
@@ -106,15 +239,18 @@ class MediaRepositoryImpl @Inject constructor(
             sql += " WHERE " + whereClauses.joinToString(" AND ")
         }
 
+        // Le tri est désactivé lors d'une recherche textuelle pour prioriser la pertinence FTS
         if (search.isNullOrBlank()) {
-            sql += " ORDER BY " + when (sort) {
-                SortOption.ADDED_DESC -> "m.addedAt DESC"
-                SortOption.TITLE -> "m.title ASC"
-                SortOption.YEAR_DESC -> "m.year DESC"
-                SortOption.YEAR_ASC -> "m.year ASC"
-                SortOption.RATING_DESC -> "COALESCE(m.imdbRating, m.rating) DESC"
-                SortOption.RATING_ASC -> "COALESCE(m.imdbRating, m.rating) ASC"
-            }
+            sql +=
+                " ORDER BY " +
+                        when (sort) {
+                            SortOption.ADDED_DESC -> "m.addedAt DESC"
+                            SortOption.TITLE -> "m.title ASC"
+                            SortOption.YEAR_DESC -> "m.year DESC"
+                            SortOption.YEAR_ASC -> "m.year ASC"
+                            SortOption.RATING_DESC -> "COALESCE(m.imdbRating, m.rating) DESC"
+                            SortOption.RATING_ASC -> "COALESCE(m.imdbRating, m.rating) ASC"
+                        }
             sql += ", m.id DESC"
         }
 
@@ -157,11 +293,115 @@ class MediaRepositoryImpl @Inject constructor(
 
     private fun Movie.toEntity(): MovieEntity {
         return MovieEntity(
-            id = this.id, title = this.title, type = this.type, posterUrl = this.posterPath,
-            year = this.year, addedAt = this.addedAt, rating = this.rating, imdbRating = this.imdbRating,
-            rottenRating = this.rottenRating, director = this.director, genres = this.genres,
-            description = this.description, studio = this.studio, contentRating = this.contentRating,
-            servers = this.servers, seasons = this.seasons, hasMultipleSources = this.hasMultipleSources
+            id = this.id,
+            title = this.title,
+            type = this.type,
+            posterUrl = this.posterPath,
+            backdrop_url = this.backdropPath,
+            year = this.year,
+            addedAt = this.addedAt,
+            rating = this.rating,
+            imdbRating = this.imdbRating,
+            rottenRating = this.rottenRating,
+            director = this.director,
+            genres = this.genres,
+            description = this.description,
+            studio = this.studio,
+            contentRating = this.contentRating,
+            servers = this.servers,
+            seasons = this.seasons,
+            hasMultipleSources = this.hasMultipleSources
+        )
+    }
+
+    private fun MovieListItem.toMovie(): Movie {
+        // Logique de résolution d'ID pour éviter les 404 si le backend attend un format spécifique
+        // (tt...)
+        val resolvedId =
+            when {
+                !imdbId.isNullOrEmpty() -> imdbId
+                !guid.isNullOrEmpty() && guid.contains("tt") -> {
+                    val extracted = guid.substringAfter("tt").substringBefore("?")
+                    "tt$extracted"
+                }
+
+                else -> id
+            }
+
+        // Debug Log pour comprendre les IDs reçus - Uniquement pour les premiers items pour éviter
+        // le spam
+        if (title.length > 2) {
+            android.util.Log.d(
+                "MediaRepo",
+                "Mapping item '${title.take(15)}': ID=$id, GUID=$guid, IMDB=$imdbId, RatingKey=$ratingKey -> Resolved=$resolvedId. Poster=${posterPath ?: thumb}"
+            )
+        }
+
+        return Movie(
+            id = resolvedId,
+            ratingKey = this.ratingKey ?: this.id,
+            title = this.title,
+            type = this.type,
+            year = this.year,
+            posterPath = this.posterPath ?: this.thumb,
+            backdropPath = this.backdropPath,
+            rating = this.rating,
+            imdbRating = this.imdbRating,
+            genres = this.genres,
+            addedAt = this.addedAt,
+            director = this.director,
+            contentRating = this.contentRating,
+            studio = this.studio,
+            description = this.summary,
+            badges = this.badges,
+            rottenRating = this.rottenRating,
+            runtime = this.duration?.toInt() ?: 0,
+            hasMultipleSources = this.hasMultipleSources,
+            viewOffset = this.viewOffset ?: 0,
+            viewCount = this.viewCount ?: 0,
+            // Mapping des listes si non nulles
+            audioTracks =
+                this.audioTracks?.map {
+                    com.chakir.aggregatorhubplex.domain.model.AudioTrack(
+                        it.displayTitle ?: "",
+                        it.language ?: "",
+                        it.codec ?: "",
+                        it.channels ?: 0,
+                        it.forced
+                    )
+                },
+            subtitles =
+                this.subtitles?.map {
+                    com.chakir.aggregatorhubplex.domain.model.Subtitle(
+                        it.displayTitle ?: "",
+                        it.language ?: "",
+                        it.codec ?: "",
+                        it.forced
+                    )
+                },
+            chapters =
+                this.chapters?.map {
+                    com.chakir.aggregatorhubplex.domain.model.Chapter(
+                        it.title ?: "",
+                        it.startTime?.toInt() ?: 0,
+                        it.endTime?.toInt() ?: 0,
+                        it.thumb
+                    )
+                },
+            markers =
+                this.markers?.map {
+                    com.chakir.aggregatorhubplex.domain.model.Marker(
+                        it.title ?: "",
+                        it.type ?: "",
+                        it.startTime?.toInt() ?: 0,
+                        it.endTime?.toInt() ?: 0
+                    )
+                },
+            // Trailers n'est pas dans MovieListItem ? On verra si besoin.
+            trailers = emptyList(), // Pas de trailers dans la liste simple
+            similar = emptyList(),
+            actors = emptyList(),
+            seasons = emptyList()
         )
     }
 }

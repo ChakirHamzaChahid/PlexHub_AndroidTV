@@ -26,7 +26,7 @@ import androidx.navigation.navArgument
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
-import androidx.tv.material3.darkColorScheme
+import androidx.tv.material3.SurfaceDefaults
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
@@ -38,8 +38,11 @@ import com.chakir.aggregatorhubplex.workers.SyncWorker
 import dagger.hilt.android.AndroidEntryPoint
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
-import androidx.tv.material3.SurfaceDefaults
 
+/**
+ * Activité principale de l'application. Point d'entrée de l'interface utilisateur Compose.
+ * Initialise également le Worker de synchronisation en arrière-plan.
+ */
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
     @OptIn(ExperimentalTvMaterial3Api::class)
@@ -48,189 +51,230 @@ class MainActivity : AppCompatActivity() {
 
         // Synchro en arrière-plan
         val syncRequest = OneTimeWorkRequestBuilder<SyncWorker>().build()
-        WorkManager.getInstance(this).enqueueUniqueWork(
-            "GlobalSync",
-            ExistingWorkPolicy.KEEP,
-            syncRequest
-        )
+        WorkManager.getInstance(this)
+                .enqueueUniqueWork("GlobalSync", ExistingWorkPolicy.KEEP, syncRequest)
 
         setContent {
             PlexHubTheme {
                 Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    shape = RectangleShape,
-                    // CORRECTION : On utilise 'colors' avec SurfaceDefaults, pas 'color' direct
-                    colors = SurfaceDefaults.colors(
-                        containerColor = MaterialTheme.colorScheme.background
-                    )
-                ) {
-                    AppNavigation()
-                }
+                        modifier = Modifier.fillMaxSize(),
+                        shape = RectangleShape,
+                        colors =
+                                SurfaceDefaults.colors(
+                                        containerColor = MaterialTheme.colorScheme.background
+                                )
+                ) { AppNavigation() }
             }
         }
     }
 }
 
+/**
+ * Gestionnaire de navigation principal de l'application. Définit le NavHost et toutes les routes
+ * composables disponibles. Gère également les transitions entre les écrans.
+ */
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route ?: Screen.Home.route
+    val currentDestination = navBackStackEntry?.destination
+    val currentRoute = currentDestination?.route ?: "discovery"
 
-    NavHost(
-        navController = navController,
-        startDestination = "discovery",
-        enterTransition = { fadeIn(animationSpec = tween(300)) },
-        exitTransition = { fadeOut(animationSpec = tween(300)) },
-        popEnterTransition = { fadeIn(animationSpec = tween(300)) },
-        popExitTransition = { fadeOut(animationSpec = tween(300)) }
-    ) {
-
-        // 1. DÉCOUVERTE
-        composable("discovery") {
-            ServerDiscoveryScreen(
-                onServerFound = {
-                    navController.navigate(Screen.Home.route) {
-                        popUpTo("discovery") { inclusive = true }
-                    }
-                }
+    // Routes qui nécessitent la barre latérale
+    val sidebarRoutes =
+            listOf(
+                    Screen.Home.route,
+                    Screen.Movies.route,
+                    Screen.Shows.route,
+                    Screen.Favorites.route,
+                    Screen.History.route,
+                    Screen.Settings.route,
+                    Screen.Servers.route,
+                    Screen.Search.route
             )
-        }
 
-        // 2. ÉCRANS PRINCIPAUX (Sidebar)
+    // Affiche la sidebar si la route courante est dans la liste ou si la route parente (si graph imbriqué) l'est
+    val showSidebar = sidebarRoutes.any { route -> currentRoute == route } || 
+                      (currentDestination?.parent?.route != null && sidebarRoutes.contains(currentDestination?.parent?.route))
 
-        composable(Screen.Search.route) {
-            SidebarLayout(currentRoute, navController::navigate) {
-                val viewModel = androidx.hilt.navigation.compose.hiltViewModel<HomeViewModel>()
-                SearchScreen(
-                    onMovieClick = { movie -> navController.navigate("details/${movie.id}") },
-                    viewModel = viewModel
-                )
-            }
-        }
-
-        composable(Screen.Home.route) {
-            SidebarLayout(currentRoute, navController::navigate) {
-                val viewModel = androidx.hilt.navigation.compose.hiltViewModel<HomeViewModel>()
-                LaunchedEffect(Unit) { viewModel.onTypeChange("all") }
-                HomeScreen(
-                    onMovieClick = { movie -> navController.navigate("details/${movie.id}") },
-                    viewModel = viewModel
-                )
-            }
-        }
-
-        composable(Screen.Movies.route) {
-            SidebarLayout(currentRoute, navController::navigate) {
-                val viewModel = androidx.hilt.navigation.compose.hiltViewModel<HomeViewModel>()
-                LaunchedEffect(Unit) { viewModel.onTypeChange("movie") }
-                HomeScreen(
-                    onMovieClick = { movie -> navController.navigate("details/${movie.id}") },
-                    viewModel = viewModel
-                )
-            }
-        }
-
-        composable(Screen.Shows.route) {
-            SidebarLayout(currentRoute, navController::navigate) {
-                val viewModel = androidx.hilt.navigation.compose.hiltViewModel<HomeViewModel>()
-                LaunchedEffect(Unit) { viewModel.onTypeChange("show") }
-                HomeScreen(
-                    onMovieClick = { movie -> navController.navigate("details/${movie.id}") },
-                    viewModel = viewModel
-                )
-            }
-        }
-
-        // MISE A JOUR : Écran Favoris réel
-        composable(Screen.Favorites.route) {
-            SidebarLayout(currentRoute, navController::navigate) {
-                FavoritesScreen(
-                    onMovieClick = { movieId -> navController.navigate("details/$movieId") }
-                )
-            }
-        }
-
-        composable(Screen.Settings.route) {
-            SidebarLayout(currentRoute, navController::navigate) {
-                SettingsScreen(
-                    onLogout = {
-                        navController.navigate("discovery") {
-                            popUpTo(0) { inclusive = true }
-                        }
-                    }
-                )
-            }
-        }
-
-        composable(Screen.Servers.route) {
-            SidebarLayout(currentRoute, navController::navigate) {
-                ServersScreen()
-            }
-        }
-
-        // 3. DÉTAIL
-        composable(
-            route = "details/{movieId}",
-            arguments = listOf(navArgument("movieId") { type = NavType.StringType }),
-            enterTransition = { slideInHorizontally { it } + fadeIn() },
-            popExitTransition = { slideOutHorizontally { it } + fadeOut() }
-        ) { backStackEntry ->
-            val movieId = backStackEntry.arguments?.getString("movieId") ?: ""
-            DetailScreen(
-                movieId = movieId,
-                // MISE A JOUR : Passage des 3 arguments pour l'historique
-                onPlayVideo = { videoUrl, title, id ->
-                    val encodedUrl = URLEncoder.encode(videoUrl, StandardCharsets.UTF_8.toString())
-                    val encodedTitle = URLEncoder.encode(title, StandardCharsets.UTF_8.toString())
-                    // On utilise des Query Params (?title=...) pour les rendre optionnels et sûrs
-                    navController.navigate("player/$encodedUrl?title=$encodedTitle&id=$id")
-                }
-            )
-        }
-
-        // 4. LECTEUR VIDÉO (Mise à jour arguments)
-        composable(
-            route = "player/{videoUrl}?title={title}&id={id}",
-            arguments = listOf(
-                navArgument("videoUrl") { type = NavType.StringType },
-                navArgument("title") { type = NavType.StringType; defaultValue = "Vidéo" },
-                navArgument("id") { type = NavType.StringType; defaultValue = "" }
-            ),
-            enterTransition = { fadeIn(tween(500)) },
-            exitTransition = { fadeOut(tween(500)) }
-        ) { backStackEntry ->
-            val videoUrl = backStackEntry.arguments?.getString("videoUrl") ?: ""
-            val title = backStackEntry.arguments?.getString("title") ?: "Vidéo"
-            val id = backStackEntry.arguments?.getString("id") ?: ""
-
-            PlayerScreen(
-                streamUrl = videoUrl,
-                mediaTitle = title, // Passage du titre
-                mediaId = id,       // Passage de l'ID pour Room
-                onBack = { navController.popBackStack() }
-            )
-        }
-    }
-}
-
-// Wrapper pour afficher la Sidebar + Contenu
-@Composable
-fun SidebarLayout(
-    currentRoute: String,
-    onNavigate: (String) -> Unit,
-    content: @Composable () -> Unit
-) {
     Row(modifier = Modifier.fillMaxSize()) {
-        AppSidebar(
-            currentRoute = currentRoute,
-            onNavigate = onNavigate,
-            // Utilisation de la couleur Surface du thème pour la sidebar
-            modifier = Modifier.background(MaterialTheme.colorScheme.surface)
-        )
+        if (showSidebar) {
+            AppSidebar(
+                    currentRoute = currentRoute,
+                    onNavigate = { route ->
+                        navController.navigate(route) {
+                            // Évite d'empiler les copies de la même destination
+                            launchSingleTop = true
+                            restoreState = true
+
+                            // Si on retourne à Home, on vide la stack jusqu'à Home pour éviter une boucle infinie
+                            if (route == Screen.Home.route) {
+                                popUpTo(Screen.Home.route) { inclusive = true }
+                            }
+                        }
+                    },
+                    modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+            )
+        }
+
         Box(modifier = Modifier.weight(1f)) {
-            content()
+            NavHost(
+                    navController = navController,
+                    startDestination = "discovery",
+                    enterTransition = { fadeIn(animationSpec = tween(300)) },
+                    exitTransition = { fadeOut(animationSpec = tween(300)) },
+                    popEnterTransition = { fadeIn(animationSpec = tween(300)) },
+                    popExitTransition = { fadeOut(animationSpec = tween(300)) }
+            ) {
+                composable("discovery") {
+                    ServerDiscoveryScreen(
+                            onServerFound = {
+                                navController.navigate(Screen.Home.route) {
+                                    popUpTo("discovery") { inclusive = true }
+                                }
+                            }
+                    )
+                }
+
+                composable(Screen.Search.route) {
+                    val viewModel = androidx.hilt.navigation.compose.hiltViewModel<HomeViewModel>()
+                    SearchScreen(
+                            onMovieClick = { movie -> navController.navigate("details/${movie.id}") },
+                            viewModel = viewModel
+                    )
+                }
+
+                composable(Screen.Home.route) {
+                    val viewModel = androidx.hilt.navigation.compose.hiltViewModel<HomeViewModel>()
+                    LaunchedEffect(Unit) { viewModel.onTypeChange("all") }
+                    HomeScreen(
+                            onMovieClick = { movie ->
+                                navController.navigate(
+                                        "details/${movie.id}?startPosition=${movie.viewOffset}"
+                                )
+                            },
+                            viewModel = viewModel
+                    )
+                }
+
+                composable(Screen.Movies.route) {
+                    val viewModel = androidx.hilt.navigation.compose.hiltViewModel<HomeViewModel>()
+                    LaunchedEffect(Unit) { viewModel.onTypeChange("movie") }
+                    HomeScreen(
+                            onMovieClick = { movie ->
+                                navController.navigate(
+                                        "details/${movie.id}?startPosition=${movie.viewOffset}"
+                                )
+                            },
+                            viewModel = viewModel
+                    )
+                }
+
+                composable(Screen.Shows.route) {
+                    val viewModel = androidx.hilt.navigation.compose.hiltViewModel<HomeViewModel>()
+                    LaunchedEffect(Unit) { viewModel.onTypeChange("show") }
+                    HomeScreen(
+                            onMovieClick = { movie ->
+                                navController.navigate(
+                                        "details/${movie.id}?startPosition=${movie.viewOffset}"
+                                )
+                            },
+                            viewModel = viewModel
+                    )
+                }
+
+                composable(Screen.Favorites.route) {
+                    FavoritesScreen(
+                            onMovieClick = { movieId -> navController.navigate("details/$movieId") }
+                    )
+                }
+
+                composable(Screen.History.route) {
+                    HistoryScreen(
+                            onMovieClick = { movie ->
+                                navController.navigate(
+                                        "details/${movie.id}?startPosition=${movie.viewOffset}"
+                                )
+                            }
+                    )
+                }
+
+                composable(Screen.Settings.route) {
+                    SettingsScreen(
+                            onLogout = {
+                                navController.navigate("discovery") { popUpTo(0) { inclusive = true } }
+                            }
+                    )
+                }
+
+                composable(Screen.Servers.route) { ServersScreen() }
+
+                composable(
+                        route = "details/{movieId}?startPosition={startPosition}",
+                        arguments =
+                                listOf(
+                                        navArgument("movieId") { type = NavType.StringType },
+                                        navArgument("startPosition") {
+                                            type = NavType.LongType
+                                            defaultValue = -1L
+                                        }
+                                ),
+                        enterTransition = { slideInHorizontally { it } + fadeIn() },
+                        popExitTransition = { slideOutHorizontally { it } + fadeOut() }
+                ) { backStackEntry ->
+                    val movieId = backStackEntry.arguments?.getString("movieId") ?: ""
+                    val startPosition = backStackEntry.arguments?.getLong("startPosition") ?: -1L
+                    DetailScreen(
+                            movieId = movieId,
+                            startPositionMs = startPosition,
+                            onPlayVideo = { videoUrl, title, id, position ->
+                                val encodedUrl =
+                                        URLEncoder.encode(videoUrl, StandardCharsets.UTF_8.toString())
+                                val encodedTitle =
+                                        URLEncoder.encode(title, StandardCharsets.UTF_8.toString())
+                                navController.navigate(
+                                        "player/$encodedUrl?title=$encodedTitle&id=$id&start_position=$position"
+                                )
+                            }
+                    )
+                }
+
+                composable(
+                        route = "player/{videoUrl}?title={title}&id={id}&start_position={startPosition}",
+                        arguments =
+                                listOf(
+                                        navArgument("videoUrl") { type = NavType.StringType },
+                                        navArgument("title") {
+                                            type = NavType.StringType
+                                            defaultValue = "Vidéo"
+                                        },
+                                        navArgument("id") {
+                                            type = NavType.StringType
+                                            defaultValue = ""
+                                        },
+                                        navArgument("startPosition") {
+                                            type = NavType.LongType
+                                            defaultValue = -1L
+                                        }
+                                ),
+                        enterTransition = { fadeIn(tween(500)) },
+                        exitTransition = { fadeOut(tween(500)) }
+                ) { backStackEntry ->
+                    val videoUrl = backStackEntry.arguments?.getString("videoUrl") ?: ""
+                    val title = backStackEntry.arguments?.getString("title") ?: "Vidéo"
+                    val id = backStackEntry.arguments?.getString("id") ?: ""
+                    val startPosition = backStackEntry.arguments?.getLong("startPosition") ?: -1L
+
+                    PlayerScreen(
+                            streamUrl = videoUrl,
+                            mediaTitle = title,
+                            mediaId = id,
+                            startPositionMs = startPosition,
+                            onBack = { navController.popBackStack() }
+                    )
+                }
+            }
         }
     }
 }

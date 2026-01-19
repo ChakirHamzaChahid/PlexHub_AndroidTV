@@ -42,6 +42,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -57,31 +58,37 @@ import androidx.paging.compose.itemContentType
 import androidx.paging.compose.itemKey
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.ExperimentalTvMaterial3Api
+import androidx.tv.material3.MaterialTheme as TvMaterialTheme
+import androidx.tv.material3.Surface
+import com.chakir.aggregatorhubplex.domain.model.Movie
 import androidx.tv.material3.Surface
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.chakir.aggregatorhubplex.data.Movie
+import com.chakir.aggregatorhubplex.ui.components.ContinueWatchingCarousel
 import com.chakir.aggregatorhubplex.ui.components.FeaturedCarousel
 import com.chakir.aggregatorhubplex.ui.components.FilterBar
 import com.chakir.aggregatorhubplex.ui.components.SkeletonCard
 import com.chakir.aggregatorhubplex.ui.components.SortMenu
+import com.chakir.aggregatorhubplex.ui.theme.Dimens
 
-val PlexAccent = Color(0xFFE5A00D)
-val NetflixBlack = Color(0xFF141414)
-val DarkSurface = Color(0xFF1F1F1F)
-val TextWhite = Color(0xFFE5E5E5)
-val TextGrey = Color(0xFFB3B3B3)
-
+/**
+ * Écran d'accueil principal. Affiche le carrousel "Reprendre", le carrousel "À la une", les
+ * filtres, le tri et la grille principale des médias (paginée).
+ *
+ * @param onMovieClick Callback lorsqu'un média est cliqué.
+ * @param viewModel ViewModel pour gérer l'état de l'écran d'accueil.
+ */
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-fun HomeScreen(
-    onMovieClick: (Movie) -> Unit,
-    viewModel: HomeViewModel = hiltViewModel()
-) {
+fun HomeScreen(onMovieClick: (Movie) -> Unit, viewModel: HomeViewModel = hiltViewModel()) {
     val movies = viewModel.moviesPagingFlow.collectAsLazyPagingItems()
     val featuredMovies by viewModel.featuredMovies.collectAsState()
+    val continueWatchingItems by viewModel.continueWatchingItems.collectAsState()
     val totalCount by viewModel.totalCount.collectAsState()
     val genreLabels = viewModel.genreLabels
+    val recentlyAdded by viewModel.recentlyAdded.collectAsState()
+    val hubs by viewModel.hubs.collectAsState()
+    val watchHistory by viewModel.watchHistory.collectAsState()
 
     var isSortMenuOpen by remember { mutableStateOf(false) }
     val currentSort by viewModel.currentSortOption.collectAsState()
@@ -92,6 +99,11 @@ fun HomeScreen(
     var filterVersion by remember { mutableIntStateOf(0) }
 
     val sortMenuFocusRequester = remember { FocusRequester() }
+    val contentFocusRequester = remember { FocusRequester() }
+
+    val plexColor = Color(0xFFE5A00D)
+    val plexBackgroundColor =
+        Brush.verticalGradient(colors = listOf(Color(0xFF282828), Color(0xFF141414)))
 
     LaunchedEffect(isSortMenuOpen) {
         if (isSortMenuOpen) {
@@ -99,99 +111,193 @@ fun HomeScreen(
         }
     }
 
-    LaunchedEffect(filterVersion) {
-        if (filterVersion > 0) gridState.scrollToItem(0)
+    LaunchedEffect(filterVersion) { if (filterVersion > 0) gridState.scrollToItem(0) }
+
+    // Fix focus management: Request focus on content when screen loads
+    LaunchedEffect(Unit) {
+        contentFocusRequester.requestFocus()
     }
 
-    val displayTitle = when (currentType) {
-        "movie" -> "Films"
-        "show" -> "Séries"
-        else -> "Médiathèque"
-    }
+    val displayTitle =
+        when (currentType) {
+            "movie" -> "Films"
+            "show" -> "Séries"
+            else -> "Médiathèque"
+        }
 
-    Box(modifier = Modifier
-        .fillMaxSize()
-        .background(NetflixBlack)) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(plexBackgroundColor)
+    ) {
         LazyVerticalGrid(
             state = gridState,
-            columns = GridCells.Adaptive(minSize = 120.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(bottom = 48.dp, start = 48.dp, end = 48.dp),
-            modifier = Modifier.fillMaxSize()
+            columns = GridCells.Fixed(6),
+            verticalArrangement = Arrangement.spacedBy(Dimens.spacing_xl),
+            horizontalArrangement = Arrangement.spacedBy(Dimens.spacing_l),
+            contentPadding =
+                PaddingValues(
+                    bottom = Dimens.spacing_xxxl,
+                    start = Dimens.spacing_xxxl,
+                    end = Dimens.spacing_xxxl
+                ),
+            modifier = Modifier
+                .fillMaxSize()
+                .focusRequester(contentFocusRequester)
         ) {
-            if (movies.loadState.refresh is LoadState.Loading && movies.itemCount == 0) {
+            if (movies.loadState.refresh is LoadState.Loading && movies.itemCount == 0
+            ) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(350.dp)
-                            .padding(bottom = 24.dp)
-                            .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
-                            .background(DarkSurface)
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(350.dp)
+                                .padding(bottom = Dimens.spacing_xl)
+                                .clip(
+                                    RoundedCornerShape(
+                                        bottomStart =
+                                            Dimens.spacing_l,
+                                        bottomEnd =
+                                            Dimens.spacing_l
+                                    )
+                                )
+                                .background(Color(0xFF2E2E2E))
                     )
                 }
                 item(span = { GridItemSpan(maxLineSpan) }) {
-                    Column(modifier = Modifier.padding(vertical = 16.dp)) {
-                        Box(modifier = Modifier
-                            .size(200.dp, 30.dp)
-                            .background(DarkSurface, RoundedCornerShape(4.dp)))
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(
+                        modifier =
+                            Modifier.padding(
+                                vertical = Dimens.spacing_l
+                            )
+                    ) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .size(200.dp, 30.dp)
+                                    .background(
+                                        Color(0xFF2E2E2E),
+                                        RoundedCornerShape(
+                                            Dimens.spacing_xs
+                                        )
+                                    )
+                        )
+                        Spacer(modifier = Modifier.height(Dimens.spacing_l))
+                        Row(
+                            horizontalArrangement =
+                                Arrangement.spacedBy(
+                                    Dimens.spacing_m
+                                )
+                        ) {
                             repeat(6) {
-                                Box(modifier = Modifier
-                                    .size(80.dp, 30.dp)
-                                    .background(DarkSurface, RoundedCornerShape(50)))
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .size(
+                                                80.dp,
+                                                30.dp
+                                            )
+                                            .background(
+                                                Color(
+                                                    0xFF2E2E2E
+                                                ),
+                                                RoundedCornerShape(
+                                                    50
+                                                )
+                                            )
+                                )
                             }
                         }
                     }
                 }
-                items(20) {
-                    SkeletonCard()
-                }
+                items(20) { SkeletonCard() }
             } else {
+                if (continueWatchingItems.isNotEmpty()) {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        ContinueWatchingCarousel(
+                            items = continueWatchingItems,
+                            onItemClick = onMovieClick
+                        )
+                    }
+                }
+
                 if (featuredMovies.isNotEmpty()) {
                     item(span = { GridItemSpan(maxLineSpan) }) {
-                        FeaturedCarousel(movies = featuredMovies, onMovieClick = onMovieClick, modifier = Modifier.padding(bottom = 24.dp))
+                        FeaturedCarousel(
+                            movies = featuredMovies,
+                            onMovieClick = onMovieClick,
+                            modifier =
+                                Modifier.padding(
+                                    bottom = Dimens.spacing_xl
+                                )
+                        )
                     }
                 }
 
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     Column {
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(
+                                        bottom =
+                                            Dimens.spacing_l
+                                    ),
+                            horizontalArrangement =
+                                Arrangement.SpaceBetween,
+                            verticalAlignment =
+                                Alignment.CenterVertically
                         ) {
                             Row(verticalAlignment = Alignment.Bottom) {
                                 Text(
                                     text = displayTitle,
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = TextWhite
+                                    style =
+                                        MaterialTheme
+                                            .typography
+                                            .headlineSmall,
+                                    fontWeight =
+                                        FontWeight.Bold,
+                                    color = Color.White
                                 )
-                                Spacer(modifier = Modifier.width(12.dp))
+                                Spacer(
+                                    modifier =
+                                        Modifier.width(
+                                            Dimens.spacing_m
+                                        )
+                                )
                                 Text(
                                     "$totalCount TITRES",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = TextGrey,
-                                    modifier = Modifier.padding(bottom = 4.dp)
+                                    style =
+                                        MaterialTheme
+                                            .typography
+                                            .labelMedium,
+                                    color = Color.LightGray,
+                                    modifier =
+                                        Modifier.padding(
+                                            bottom =
+                                                Dimens.spacing_xs
+                                        )
                                 )
                             }
 
                             SortMenu(
                                 currentSort = currentSort,
-                                onSortClick = { isSortMenuOpen = true },
+                                onSortClick = {
+                                    isSortMenuOpen = true
+                                },
                                 isSortMenuOpen = isSortMenuOpen,
                                 onSortChange = {
                                     viewModel.onSortChange(it)
                                     filterVersion++
                                     isSortMenuOpen = false
                                 },
-                                onDismiss = { isSortMenuOpen = false },
-                                focusRequester = sortMenuFocusRequester
+                                onDismiss = {
+                                    isSortMenuOpen = false
+                                },
+                                focusRequester =
+                                    sortMenuFocusRequester
                             )
                         }
 
@@ -206,6 +312,46 @@ fun HomeScreen(
                     }
                 }
 
+                // --- NEW SECTIONS ---
+                // recentlyAdded and hubs are collected at the top
+
+                if (recentlyAdded.isNotEmpty()) {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        MediaRow(
+                            title = "Récemment ajoutés",
+                            movies = recentlyAdded,
+                            onMovieClick = onMovieClick,
+                            plexColor = plexColor
+                        )
+                    }
+                }
+
+                hubs.forEach { (hubTitle, hubMovies) ->
+                    if (hubMovies.isNotEmpty()) {
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            MediaRow(
+                                title = hubTitle,
+                                movies = hubMovies,
+                                onMovieClick = onMovieClick,
+                                plexColor = plexColor
+                            )
+                        }
+                    }
+                }
+
+                if (watchHistory.isNotEmpty()) {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        MediaRow(
+                            title = "Historique",
+                            movies = watchHistory,
+                            onMovieClick = onMovieClick,
+                            plexColor = plexColor
+                        )
+                    }
+                }
+
+                // --- END NEW SECTIONS ---
+
                 items(
                     count = movies.itemCount,
                     key = movies.itemKey { it.id },
@@ -213,16 +359,28 @@ fun HomeScreen(
                 ) { index ->
                     val movie = movies[index]
                     if (movie != null) {
-                        MovieCard(movie = movie, onClick = { onMovieClick(movie) })
+                        MovieCard(
+                            movie = movie,
+                            onClick = { onMovieClick(movie) },
+                            plexColor = plexColor,
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
                 }
 
                 if (movies.loadState.append is LoadState.Loading) {
                     item(span = { GridItemSpan(maxLineSpan) }) {
-                        Box(modifier = Modifier
-                            .height(100.dp)
-                            .fillMaxWidth(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(modifier = Modifier.size(30.dp), color = PlexAccent)
+                        Box(
+                            modifier =
+                                Modifier
+                                    .height(100.dp)
+                                    .fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(30.dp),
+                                color = plexColor
+                            )
                         }
                     }
                 }
@@ -231,43 +389,58 @@ fun HomeScreen(
     }
 }
 
+/**
+ * Carte de média affichant l'image et le titre. Gère le focus et l'animation de mise à l'échelle.
+ */
+
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-fun MovieCard(movie: Movie, onClick: () -> Unit) {
+fun MovieCard(
+    movie: Movie,
+    onClick: () -> Unit,
+    plexColor: Color,
+    modifier: Modifier = Modifier
+) {
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
     val context = LocalContext.current
 
-    val scale by animateFloatAsState(
+    val scale by
+    animateFloatAsState(
         targetValue = if (isFocused) 1.1f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioLowBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
+        animationSpec =
+            spring(
+                dampingRatio = Spring.DampingRatioLowBouncy,
+                stiffness = Spring.StiffnessLow
+            ),
         label = "scale"
     )
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .width(110.dp)
+        modifier = modifier
             .scale(scale)
             .zIndex(if (isFocused) 10f else 1f)
     ) {
         Surface(
             onClick = { onClick() },
-            shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(8.dp)),
-            modifier = Modifier
-                .height(165.dp)
-                .fillMaxWidth()
-                .focusable(interactionSource = interactionSource)
+            shape =
+                ClickableSurfaceDefaults.shape(
+                    shape = RoundedCornerShape(Dimens.spacing_s)
+                ),
+            modifier =
+                Modifier
+                    .height(165.dp)
+                    .fillMaxWidth()
+                    .focusable(interactionSource = interactionSource)
         ) {
             AsyncImage(
-                model = ImageRequest.Builder(context)
-                    .data(movie.posterUrl)
-                    .crossfade(true)
-                    .size(300, 450)
-                    .build(),
+                model =
+                    ImageRequest.Builder(context)
+                        .data(movie.posterUrl)
+                        .crossfade(true)
+                        .size(300, 450)
+                        .build(),
                 contentDescription = movie.title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
@@ -275,42 +448,77 @@ fun MovieCard(movie: Movie, onClick: () -> Unit) {
 
             if (isFocused) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .border(3.dp, Color.White, RoundedCornerShape(8.dp))
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .border(
+                                Dimens.spacing_xxs,
+                                Color.White,
+                                RoundedCornerShape(Dimens.spacing_s)
+                            )
                 )
             }
 
             if (movie.hasMultipleSources) {
-                Box(modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(4.dp)
-                    .background(PlexAccent, RoundedCornerShape(2.dp))
-                    .padding(horizontal = 4.dp, vertical = 1.dp)) {
-                    Text("MULTI", fontWeight = FontWeight.Bold, color = Color.Black)
+                Box(
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(Dimens.spacing_xs)
+                            .background(
+                                plexColor,
+                                RoundedCornerShape(
+                                    Dimens.spacing_xxs
+                                )
+                            )
+                            .padding(
+                                horizontal = Dimens.spacing_xs,
+                                vertical = Dimens.spacing_xxs
+                            )
+                ) {
+                    Text(
+                        "MULTI",
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black
+                    )
                 }
             }
 
             val displayRating = movie.imdbRating ?: movie.rating
             if (displayRating != null && displayRating > 0) {
-                Box(modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(4.dp)
-                    .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(2.dp))
-                    .padding(horizontal = 4.dp, vertical = 1.dp)) {
-                    Text("★ $displayRating", fontWeight = FontWeight.Bold, color = PlexAccent)
+                Box(
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopStart)
+                            .padding(Dimens.spacing_xs)
+                            .background(
+                                Color.Black.copy(alpha = 0.7f),
+                                RoundedCornerShape(
+                                    Dimens.spacing_xxs
+                                )
+                            )
+                            .padding(
+                                horizontal = Dimens.spacing_xs,
+                                vertical = Dimens.spacing_xxs
+                            )
+                ) {
+                    Text(
+                        "★ $displayRating",
+                        fontWeight = FontWeight.Bold,
+                        color = plexColor
+                    )
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacing_s))
 
         Text(
             text = movie.title,
             style = MaterialTheme.typography.bodySmall,
             textAlign = TextAlign.Center,
             overflow = TextOverflow.Ellipsis,
-            color = if (isFocused) PlexAccent else TextGrey,
+            color = if (isFocused) Color.White else Color.LightGray,
             maxLines = 1,
             fontWeight = if (isFocused) FontWeight.Bold else FontWeight.Normal
         )

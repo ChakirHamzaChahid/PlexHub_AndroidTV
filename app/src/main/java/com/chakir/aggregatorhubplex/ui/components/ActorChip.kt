@@ -15,25 +15,33 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.chakir.aggregatorhubplex.data.Actor
+import com.chakir.aggregatorhubplex.domain.model.Actor
 
+/**
+ * Composant affichant un acteur sous forme de pastille (Chip). Affiche la photo (ronde), le nom et
+ * le rôle.
+ */
 @Composable
 fun ActorChip(actor: Actor) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.padding(8.dp).width(100.dp)
+        modifier = Modifier
+            .padding(8.dp)
+            .width(100.dp)
     ) {
         AsyncImage(
-            model = ImageRequest.Builder(LocalContext.current)
-                .data(actor.actorImageUrl)
-                .crossfade(true)
-                .build(),
+            model =
+                ImageRequest.Builder(LocalContext.current)
+                    .data(actor.actorImageUrl)
+                    .crossfade(true)
+                    .build(),
             contentDescription = actor.name,
             contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .size(80.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surface)
+            modifier =
+                Modifier
+                    .size(80.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surface)
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(

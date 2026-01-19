@@ -22,79 +22,72 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import com.chakir.aggregatorhubplex.data.Movie
+import com.chakir.aggregatorhubplex.domain.model.Movie
 
+/** Carrousel horizontal affichant les contenus "Continuer la lecture". */
 @Composable
-fun ContinueWatchingCarousel(
-    items: List<Movie>,
-    onItemClick: (Movie) -> Unit
-) {
+fun ContinueWatchingCarousel(items: List<Movie>, onItemClick: (Movie) -> Unit) {
     if (items.isEmpty()) return
 
     Column {
         Text(
-            text = "Continuer la lecture",
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(start = 16.dp, top = 24.dp, bottom = 8.dp)
+                text = "Continuer la lecture",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(start = 16.dp, top = 24.dp, bottom = 8.dp)
         )
         LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             items(items) { item ->
-                ContinueWatchingCard(
-                    item = item,
-                    onClick = { onItemClick(item) }
-                )
+                ContinueWatchingCard(item = item, onClick = { onItemClick(item) })
             }
         }
     }
 }
 
+/**
+ * Carte individuelle pour "Continuer la lecture". Affiche la barre de progression en bas de
+ * l'affiche.
+ */
 @Composable
-fun ContinueWatchingCard(
-    item: Movie,
-    onClick: () -> Unit
-) {
-    val progress = if (item.duration > 0) {
-        item.viewOffset.toFloat() / item.duration.toFloat()
-    } else {
-        0f
-    }
+fun ContinueWatchingCard(item: Movie, onClick: () -> Unit) {
+    val progress =
+            if (item.duration > 0) {
+                item.viewOffset.toFloat() / item.duration.toFloat()
+            } else {
+                0f
+            }
 
-    Card(
-        modifier = Modifier
-            .width(160.dp)
-            .clickable(onClick = onClick)
-    ) {
+    Card(modifier = Modifier.width(160.dp).clickable(onClick = onClick)) {
         Column {
             Box(
-                modifier = Modifier
-                    .height(240.dp) // Typical poster aspect ratio
-                    .fillMaxWidth()
+                    modifier =
+                            Modifier.height(240.dp) // Typical poster aspect ratio
+                                    .fillMaxWidth()
             ) {
                 AsyncImage(
-                    model = item.posterUrl,
-                    contentDescription = item.title,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxWidth()
+                        model = item.posterUrl,
+                        contentDescription = item.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxWidth()
                 )
                 if (progress > 0.05f && progress < 0.95f) { // Show progress only if relevant
                     LinearProgressIndicator(
-                        progress = progress,
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .fillMaxWidth()
-                            .padding(4.dp)
+                            progress = progress,
+                            modifier =
+                                    Modifier.align(Alignment.BottomCenter)
+                                            .fillMaxWidth()
+                                            .padding(4.dp)
                     )
                 }
             }
             Text(
-                text = item.title,
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(8.dp)
+                    text = item.title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(8.dp)
             )
         }
     }

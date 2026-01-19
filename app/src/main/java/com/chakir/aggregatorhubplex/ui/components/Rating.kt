@@ -10,6 +10,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 
+/**
+ * Composant d'affichage de note sous forme d'étoiles. Gère les étoiles pleines, à moitié pleines et
+ * vides.
+ *
+ * @param rating Note actuelle (sur 10 par défaut, ajustée selon [maxRating]).
+ * @param maxRating Nombre maximum d'étoiles à afficher (défaut 5).
+ */
 @Composable
 fun Rating(modifier: Modifier = Modifier, rating: Float, maxRating: Int = 5) {
     Row(modifier = modifier) {

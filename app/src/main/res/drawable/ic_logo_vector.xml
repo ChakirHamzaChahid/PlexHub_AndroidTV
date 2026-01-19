@@ -6,41 +6,41 @@
 
     <path
         android:pathData="M0,0h512v512h-512z"
-        android:fillColor="#000000"/>
+        android:fillColor="#000000" />
 
     <group android:translateY="60">
-        
+
         <path
             android:fillColor="#FFFFFF"
-            android:pathData="M40,140 h50 q30,0 30,30 v25 q0,30 -30,30 h-20 v55 h-30 z M70,165 v35 h15 q10,0 10,-17 v-1 q0,-17 -10,-17 z"/>
-        
+            android:pathData="M40,140 h50 q30,0 30,30 v25 q0,30 -30,30 h-20 v55 h-30 z M70,165 v35 h15 q10,0 10,-17 v-1 q0,-17 -10,-17 z" />
+
         <path
             android:fillColor="#FFFFFF"
-            android:pathData="M130,130 h30 v150 h-30 z"/>
-        
+            android:pathData="M130,130 h30 v150 h-30 z" />
+
         <path
             android:fillColor="#FFFFFF"
-            android:pathData="M170,205 q0,-35 25,-50 q15,-8 35,-8 q30,0 45,20 q10,15 10,45 v10 h-80 v5 q0,20 15,20 q10,0 20,-8 l5,-5 l15,20 q-15,20 -40,20 q-30,0 -45,-20 q-15,-20 -15,-50 z M250,205 v-5 q0,-15 -5,-20 q-5,-5 -15,-5 q-15,0 -20,30 h40 z"/>
-        
+            android:pathData="M170,205 q0,-35 25,-50 q15,-8 35,-8 q30,0 45,20 q10,15 10,45 v10 h-80 v5 q0,20 15,20 q10,0 20,-8 l5,-5 l15,20 q-15,20 -40,20 q-30,0 -45,-20 q-15,-20 -15,-50 z M250,205 v-5 q0,-15 -5,-20 q-5,-5 -15,-5 q-15,0 -20,30 h40 z" />
+
         <path
             android:fillColor="#FFFFFF"
-            android:pathData="M275,180 l25,-32 h35 l-30,40 l35,52 h-35 l-20,-35 l-20,35 h-35 l35,-52 l-30,-40 h35 z"/>
+            android:pathData="M275,180 l25,-32 h35 l-30,40 l35,52 h-35 l-20,-35 l-20,35 h-35 l35,-52 l-30,-40 h35 z" />
 
         <path
             android:fillColor="#F79E1B"
-            android:pathData="M350,130 h130 a10,10 0 0 1 10,10 v140 a10,10 0 0 1 -10,10 h-130 a10,10 0 0 1 -10,-10 v-140 a10,10 0 0 1 10,-10 z"/>
+            android:pathData="M350,130 h130 a10,10 0 0 1 10,10 v140 a10,10 0 0 1 -10,10 h-130 a10,10 0 0 1 -10,-10 v-140 a10,10 0 0 1 10,-10 z" />
 
         <path
             android:fillColor="#000000"
-            android:pathData="M370,155 h25 v45 h30 v-45 h25 v110 h-25 v-40 h-30 v40 h-25 z"/>
-        
+            android:pathData="M370,155 h25 v45 h30 v-45 h25 v110 h-25 v-40 h-30 v40 h-25 z" />
+
         <path
             android:fillColor="#000000"
-            android:pathData="M460,155 h25 v75 q0,15 -8,25 q-8,10 -22,10 q-15,0 -22,-10 q-8,-10 -8,-25 v-75 h25 v70 q0,15 10,15 q10,0 10,-15 z"/>
-        
+            android:pathData="M460,155 h25 v75 q0,15 -8,25 q-8,10 -22,10 q-15,0 -22,-10 q-8,-10 -8,-25 v-75 h25 v70 q0,15 10,15 q10,0 10,-15 z" />
+
         <path
             android:fillColor="#000000"
-            android:pathData="M525,155 h30 q15,0 22,8 q8,8 8,20 q0,10 -5,17 q-5,7 -15,10 q12,2 18,10 q6,8 6,20 q0,15 -10,25 q-10,10 -30,10 h-45 z M550,175 h-15 v25 h15 q8,0 8,-12 v-1 q0,-12 -8,-12 z M550,220 h-15 v30 h15 q10,0 10,-15 v-1 q0,-15 -10,-14 z"/>
-            
+            android:pathData="M525,155 h30 q15,0 22,8 q8,8 8,20 q0,10 -5,17 q-5,7 -15,10 q12,2 18,10 q6,8 6,20 q0,15 -10,25 q-10,10 -30,10 h-45 z M550,175 h-15 v25 h15 q8,0 8,-12 v-1 q0,-12 -8,-12 z M550,220 h-15 v30 h15 q10,0 10,-15 v-1 q0,-15 -10,-14 z" />
+
     </group>
 </vector>

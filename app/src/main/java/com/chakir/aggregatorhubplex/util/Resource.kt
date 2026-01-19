@@ -1,31 +1,35 @@
 package com.chakir.aggregatorhubplex.util
 
 /**
- * A generic sealed class that represents the state of a data request.
- * It can be in one of three states: Success, Error, or Loading.
+ * Une classe scellée (sealed class) générique qui représente l'état d'une demande de données
+ * (réseau ou base de données). Elle peut se trouver dans l'un des trois états suivants : Succès
+ * (Success), Erreur (Error) ou Chargement (Loading).
  *
- * @param T The type of the data held by the resource.
- * @param data The actual data. Can be present in any state, for example, to show stale data while loading new data.
- * @param message An optional error message, typically used in the Error state.
+ * @param T Le type de données transporté par la ressource.
+ * @param data Les données réelles. Peuvent être présentes dans n'importe quel état (ex: afficher
+ * des données obsolètes pendant le chargement).
+ * @param message Un message d'erreur optionnel, généralement utilisé dans l'état Error.
  */
-sealed class Resource<T>(val data: T? = null, val message: String? = null) {
+sealed class Resource<out T>(val data: T? = null, val message: String? = null) {
 
     /**
-     * Represents a successful data request.
-     * @param data The successfully retrieved data. It cannot be null.
+     * Représente une demande de données réussie.
+     * @param data Les données récupérées avec succès. Ne peut pas être nul.
      */
-    class Success<T>(data: T) : Resource<T>(data)
+    class Success<out T>(data: T) : Resource<T>(data)
 
     /**
-     * Represents a failed data request.
-     * @param message The error message describing what went wrong.
-     * @param data Optional data that might still be relevant (e.g., cached data).
+     * Représente une demande de données échouée.
+     * @param message Le message d'erreur décrivant ce qui s'est mal passé.
+     * @param data Données optionnelles qui peuvent encore être pertinentes (par exemple, données
+     * mises en cache).
      */
-    class Error<T>(message: String, data: T? = null) : Resource<T>(data, message)
+    class Error<out T>(message: String, data: T? = null) : Resource<T>(data, message)
 
     /**
-     * Represents a data request that is currently in progress.
-     * @param data Optional stale data that can be displayed while new data is being loaded.
+     * Représente une demande de données en cours de traitement.
+     * @param data Données obsolètes optionnelles qui peuvent être affichées pendant le chargement
+     * des nouvelles données.
      */
-    class Loading<T>(data: T? = null) : Resource<T>(data)
+    class Loading<out T>(data: T? = null) : Resource<T>(data)
 }

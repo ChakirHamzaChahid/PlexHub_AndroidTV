@@ -4,8 +4,9 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 
 /**
- * An interface that provides CoroutineDispatchers for the application.
- * This allows for easy swapping of dispatchers in tests.
+ * Interface fournissant les dispatchers de coroutines pour l'application. Cette abstraction
+ * facilite le remplacement des dispatchers lors des tests unitaires (par exemple, utiliser
+ * `TestDispatcher` au lieu de `Dispatchers.IO`).
  */
 interface CoroutineDispatchers {
     val io: CoroutineDispatcher
@@ -13,9 +14,7 @@ interface CoroutineDispatchers {
     val default: CoroutineDispatcher
 }
 
-/**
- * The production implementation of [CoroutineDispatchers].
- */
+/** Implémentation de production de [CoroutineDispatchers]. */
 class AppCoroutineDispatchers : CoroutineDispatchers {
     override val io: CoroutineDispatcher = Dispatchers.IO
     override val main: CoroutineDispatcher = Dispatchers.Main

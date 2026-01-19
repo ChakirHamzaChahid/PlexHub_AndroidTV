@@ -7,7 +7,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -27,10 +26,17 @@ val BackgroundColor = Color(0xFF141414)
 val BrandColor = Color(0xFFE5A00D)
 
 @OptIn(ExperimentalTvMaterial3Api::class)
+/**
+ * Écran de découverte et de configuration du serveur. Permet à l'utilisateur de saisir l'adresse IP
+ * du serveur PlexHub.
+ *
+ * @param onServerFound Callback lorsque le serveur est trouvé et configuré.
+ * @param viewModel ViewModel pour la gestion de l'état de la découverte.
+ */
 @Composable
 fun ServerDiscoveryScreen(
-    onServerFound: () -> Unit,
-    viewModel: ServerDiscoveryViewModel = hiltViewModel() // Injection Hilt
+        onServerFound: () -> Unit,
+        viewModel: ServerDiscoveryViewModel = hiltViewModel() // Injection Hilt
 ) {
     // On observe l'état du ViewModel (qui gère DataStore et NetworkModule)
     val uiState by viewModel.uiState.collectAsState()
@@ -44,10 +50,8 @@ fun ServerDiscoveryScreen(
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(BackgroundColor),
-        contentAlignment = Alignment.Center
+            modifier = Modifier.fillMaxSize().background(BackgroundColor),
+            contentAlignment = Alignment.Center
     ) {
         when (val state = uiState) {
             // Cas 1 : Vérification initiale ou Connexion en cours
@@ -56,9 +60,9 @@ fun ServerDiscoveryScreen(
                     CircularProgressIndicator(color = BrandColor)
                     Spacer(modifier = Modifier.height(24.dp))
                     Text(
-                        "Connexion au serveur...",
-                        color = Color.Gray,
-                        style = MaterialTheme.typography.titleMedium
+                            "Connexion au serveur...",
+                            color = Color.Gray,
+                            style = MaterialTheme.typography.titleMedium
                     )
                 }
             }
@@ -69,85 +73,96 @@ fun ServerDiscoveryScreen(
             }
 
             // Cas 3 : Saisie nécessaire (Premier lancement) ou Erreur
-            is DiscoveryState.InputNeeded, is DiscoveryState.Error -> {
+            is DiscoveryState.InputNeeded,
+            is DiscoveryState.Error -> {
                 val errorMessage = (state as? DiscoveryState.Error)?.message
 
                 // On réutilise votre mise en page propre
                 DiscoveryContent(
-                    urlValue = urlInput,
-                    errorMessage = errorMessage,
-                    onUrlChange = viewModel::onUrlChanged,
-                    onConnect = { viewModel.saveAndConnect(urlInput) }
+                        urlValue = urlInput,
+                        errorMessage = errorMessage,
+                        onUrlChange = viewModel::onUrlChanged,
+                        onConnect = { viewModel.saveAndConnect(urlInput) }
                 )
             }
         }
     }
 }
 
+/**
+ * Contenu de l'écran de découverte (formulaire de saisie).
+ *
+ * @param urlValue Valeur actuelle de l'URL.
+ * @param errorMessage Message d'erreur éventuel.
+ * @param onUrlChange Callback lors du changement de l'URL.
+ * @param onConnect Callback lors du clic sur le bouton "Connexion".
+ */
 @Composable
 fun DiscoveryContent(
-    urlValue: String,
-    errorMessage: String?,
-    onUrlChange: (String) -> Unit,
-    onConnect: () -> Unit
+        urlValue: String,
+        errorMessage: String?,
+        onUrlChange: (String) -> Unit,
+        onConnect: () -> Unit
 ) {
     val focusManager = LocalFocusManager.current
 
     Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .padding(32.dp)
-            .width(500.dp) // Largeur fixe optimisée TV
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(32.dp).width(500.dp) // Largeur fixe optimisée TV
     ) {
         Icon(
-            imageVector = Icons.Default.Home,
-            contentDescription = null,
-            modifier = Modifier.size(80.dp),
-            tint = BrandColor
+                imageVector = Icons.Default.Home,
+                contentDescription = null,
+                modifier = Modifier.size(80.dp),
+                tint = BrandColor
         )
 
         Spacer(modifier = Modifier.height(32.dp))
 
         Text(
-            text = "Configuration du Serveur",
-            style = MaterialTheme.typography.headlineSmall,
-            color = Color.White,
-            fontWeight = FontWeight.Bold
+                text = "Configuration du Serveur",
+                style = MaterialTheme.typography.headlineSmall,
+                color = Color.White,
+                fontWeight = FontWeight.Bold
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "Entrez l'adresse IP de votre serveur PlexHub\n(ex: 192.168.1.50)",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color.Gray,
-            textAlign = TextAlign.Center
+                text = "Entrez l'adresse IP de votre serveur PlexHub\n(ex: 192.168.1.50)",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.Gray,
+                textAlign = TextAlign.Center
         )
 
         Spacer(modifier = Modifier.height(32.dp))
 
         // Champ de saisie
         OutlinedTextField(
-            value = urlValue,
-            onValueChange = onUrlChange,
-            label = { Text("Adresse IP", color = Color.Gray) },
-            placeholder = { Text("192.168.x.x", color = Color.DarkGray) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = BrandColor,
-                unfocusedBorderColor = Color.Gray,
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White,
-                cursorColor = BrandColor,
-                focusedLabelColor = BrandColor,
-                unfocusedLabelColor = Color.Gray
-            ),
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(onDone = {
-                focusManager.clearFocus()
-                onConnect()
-            })
+                value = urlValue,
+                onValueChange = onUrlChange,
+                label = { Text("Adresse IP", color = Color.Gray) },
+                placeholder = { Text("192.168.x.x", color = Color.DarkGray) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                colors =
+                        OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = BrandColor,
+                                unfocusedBorderColor = Color.Gray,
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                cursorColor = BrandColor,
+                                focusedLabelColor = BrandColor,
+                                unfocusedLabelColor = Color.Gray
+                        ),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions =
+                        KeyboardActions(
+                                onDone = {
+                                    focusManager.clearFocus()
+                                    onConnect()
+                                }
+                        )
         )
 
         // Affichage d'erreur si besoin
@@ -157,9 +172,9 @@ fun DiscoveryContent(
                 Icon(Icons.Default.Warning, null, tint = Color.Red, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = errorMessage,
-                    color = Color.Red,
-                    style = MaterialTheme.typography.labelSmall
+                        text = errorMessage,
+                        color = Color.Red,
+                        style = MaterialTheme.typography.labelSmall
                 )
             }
         }
@@ -168,18 +183,16 @@ fun DiscoveryContent(
 
         // Bouton Connexion
         Button(
-            onClick = onConnect,
-            colors = ButtonDefaults.buttonColors(containerColor = BrandColor),
-            shape = RoundedCornerShape(8.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp)
+                onClick = onConnect,
+                colors = ButtonDefaults.buttonColors(containerColor = BrandColor),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth().height(50.dp)
         ) {
             Text(
-                "Connexion",
-                color = Color.Black,
-                fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.titleMedium
+                    "Connexion",
+                    color = Color.Black,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium
             )
         }
     }

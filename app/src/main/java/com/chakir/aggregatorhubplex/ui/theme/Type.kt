@@ -7,30 +7,35 @@ import androidx.compose.ui.unit.sp
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Typography
 
-// Set of Material typography styles to start with
+/**
+ * Définition des typographies Material 3 pour l'application TV. Personnalise les styles de texte
+ * par défaut.
+ */
 @OptIn(ExperimentalTvMaterial3Api::class)
-val Typography = Typography(
-    bodyLarge = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Normal,
-        fontSize = 16.sp,
-        lineHeight = 24.sp,
-        letterSpacing = 0.5.sp
-    )
-    /* Other default text styles to override
-    titleLarge = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Normal,
-        fontSize = 22.sp,
-        lineHeight = 28.sp,
-        letterSpacing = 0.sp
-    ),
-    labelSmall = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Medium,
-        fontSize = 11.sp,
-        lineHeight = 16.sp,
-        letterSpacing = 0.5.sp
-    )
-    */
-)
+val Typography =
+        Typography(
+                bodyLarge =
+                        TextStyle(
+                                fontFamily = FontFamily.Default,
+                                fontWeight = FontWeight.Normal,
+                                fontSize = 16.sp,
+                                lineHeight = 24.sp,
+                                letterSpacing = 0.5.sp
+                        )
+                /* Autres styles à surcharger si besoin
+                titleLarge = TextStyle(
+                    fontFamily = FontFamily.Default,
+                    fontWeight = FontWeight.Normal,
+                    fontSize = 22.sp,
+                    lineHeight = 28.sp,
+                    letterSpacing = 0.sp
+                ),
+                labelSmall = TextStyle(
+                    fontFamily = FontFamily.Default,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 11.sp,
+                    lineHeight = 16.sp,
+                    letterSpacing = 0.5.sp
+                )
+                */
+                )

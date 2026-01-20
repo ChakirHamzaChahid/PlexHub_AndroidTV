@@ -153,7 +153,7 @@ constructor(
                     id = id,
                     title = title,
                     type = type,
-                    posterUrl = UrlFixer.fix(posterPath),
+                    posterUrl = UrlFixer.fix(posterPath ?: thumb),
                     backdrop_url = UrlFixer.fix(backdropPath),
                     year = year,
                     rating = rating,

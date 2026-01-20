@@ -78,6 +78,7 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.navigation:navigation-compose:2.9.6")
     implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation("io.coil-kt:coil-video:2.7.0")
 
     // --- Networking & Data ---
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")

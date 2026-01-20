@@ -64,6 +64,16 @@ constructor(
     private val _filterType = MutableStateFlow<String?>(null)
     private val _sortOption = MutableStateFlow(SortOption.ADDED_DESC)
     private val _filterGenreLabel = MutableStateFlow("Tout")
+    
+    // Map to store last focused index per type (movie, show)
+    private val _lastFocusedIndex = MutableStateFlow<Map<String, Int>>(emptyMap())
+    val lastFocusedIndex: StateFlow<Map<String, Int>> = _lastFocusedIndex
+
+    fun setLastFocusedIndex(type: String, index: Int) {
+        val currentMap = _lastFocusedIndex.value.toMutableMap()
+        currentMap[type] = index
+        _lastFocusedIndex.value = currentMap
+    }
 
     // --- ÉTATS EXPOSÉS ---
     val currentFilterType: StateFlow<String?> = _filterType

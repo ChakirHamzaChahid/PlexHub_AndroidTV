@@ -64,6 +64,18 @@ interface MovieDao {
     )
     fun getTopRated(type: String?, limit: Int): Flow<List<MovieEntity>>
 
+    /**
+     * Récupère les derniers ajouts (films et séries confondus).
+     */
+    @Query("SELECT * FROM movies ORDER BY addedAt DESC LIMIT :limit")
+    fun getRecentlyAdded(limit: Int): Flow<List<MovieEntity>>
+
+    /**
+     * Récupère les derniers ajouts par type (movie/show).
+     */
+    @Query("SELECT * FROM movies WHERE type = :type ORDER BY addedAt DESC LIMIT :limit")
+    fun getRecentlyAddedByType(type: String, limit: Int): Flow<List<MovieEntity>>
+
     /** Récupère la liste de tous les genres disponibles (format JSON brut, doit être parsé). */
     @Query("SELECT genres FROM movies") suspend fun getAllGenres(): List<String>
 

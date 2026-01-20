@@ -18,6 +18,7 @@ import androidx.tv.material3.Text
 import com.chakir.aggregatorhubplex.domain.model.Movie
 import com.chakir.aggregatorhubplex.data.local.FavoriteEntity
 import com.chakir.aggregatorhubplex.data.repository.FavoriteRepository
+import com.chakir.aggregatorhubplex.ui.components.MovieCard
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,7 +32,7 @@ import kotlinx.coroutines.launch
  */
 @HiltViewModel
 class FavoritesViewModel @Inject constructor(private val repository: FavoriteRepository) :
-        ViewModel() {
+    ViewModel() {
     private val _favorites = MutableStateFlow<List<FavoriteEntity>>(emptyList())
     val favorites: StateFlow<List<FavoriteEntity>> = _favorites
 
@@ -47,17 +48,19 @@ class FavoritesViewModel @Inject constructor(private val repository: FavoriteRep
  */
 @Composable
 fun FavoritesScreen(
-        onMovieClick: (String) -> Unit,
-        viewModel: FavoritesViewModel = hiltViewModel()
+    onMovieClick: (String) -> Unit,
+    viewModel: FavoritesViewModel = hiltViewModel()
 ) {
     val favorites by viewModel.favorites.collectAsState()
 
-    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    Box(modifier = Modifier
+        .fillMaxSize()
+        .background(MaterialTheme.colorScheme.background)) {
         Column(modifier = Modifier.padding(48.dp)) {
             Text(
-                    "Mes Favoris",
-                    style = MaterialTheme.typography.displaySmall,
-                    color = MaterialTheme.colorScheme.onBackground
+                "Mes Favoris",
+                style = MaterialTheme.typography.displaySmall,
+                color = MaterialTheme.colorScheme.onBackground
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -66,30 +69,30 @@ fun FavoritesScreen(
                 Text("Aucun favori pour le moment.", color = MaterialTheme.colorScheme.secondary)
             } else {
                 LazyVerticalGrid(
-                        columns = GridCells.Fixed(6),
-                        verticalArrangement = Arrangement.spacedBy(20.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        contentPadding = PaddingValues(bottom = 24.dp)
+                    columns = GridCells.Fixed(6),
+                    verticalArrangement = Arrangement.spacedBy(20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    contentPadding = PaddingValues(bottom = 24.dp)
                 ) {
                     items(favorites) { fav ->
                         // CORRECTION ICI : On utilise les vrais noms de champs du DataLayer
                         val movie =
-                                Movie(
-                                        id = fav.mediaId,
-                                        title = fav.title,
-                                        // Le constructeur attend 'posterPath', pas 'posterUrl'
-                                        posterPath = fav.posterUrl,
-                                        // Le constructeur attend 'type' (String), pas 'isSeries'
-                                        // (Boolean)
-                                        type = fav.type
-                                )
+                            Movie(
+                                id = fav.mediaId,
+                                title = fav.title,
+                                // Le constructeur attend 'posterPath', pas 'posterUrl'
+                                posterPath = fav.posterUrl,
+                                // Le constructeur attend 'type' (String), pas 'isSeries'
+                                // (Boolean)
+                                type = fav.type
+                            )
 
                         // On réutilise votre MovieCard existant
                         MovieCard(
-                                movie = movie,
-                                onClick = { onMovieClick(fav.mediaId) },
-                                plexColor = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.fillMaxWidth()
+                            movie = movie,
+                            onClick = { onMovieClick(fav.mediaId) },
+                            plexColor = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }

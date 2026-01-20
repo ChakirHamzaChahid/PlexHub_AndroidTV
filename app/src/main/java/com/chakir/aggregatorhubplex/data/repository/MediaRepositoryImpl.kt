@@ -18,6 +18,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
 
 /**
  * Implémentation du [MediaRepository]. Combine les données locales (Room) et distantes (API
@@ -94,64 +95,107 @@ constructor(private val database: AppDatabase, private val api: MovieApiService)
             .sorted()
     }
 
-    override fun getContinueWatching(): Flow<List<Movie>> = flow {
-        try {
-            val remoteList = api.getContinueWatching()
-            if (remoteList.isNotEmpty()) {
-                emit(remoteList)
-            } else {
-                // Fallback local si la liste distante est vide (optionnel)
-                emit(emptyList())
+    override fun getContinueWatching(): Flow<List<Movie>> =
+        database.playHistoryDao().getRecentHistory().map { historyList ->
+            historyList.filter { !it.isFinished }.map { historyItem ->
+                Movie(
+                    id = historyItem.mediaId,
+                    ratingKey = historyItem.mediaId,
+                    title = historyItem.title,
+                    type = historyItem.type,
+                    posterPath = historyItem.posterUrl,
+                    viewOffset = historyItem.positionMs, // Important for UI progress bar
+                    duration = historyItem.durationMs, // Important for UI progress bar
+                    backdropPath = historyItem.backdropUrl,
+                    // Default values for other fields
+                    addedAt = historyItem.lastPlayedAt.toString(),
+                    year = 0,
+                    rating = 0f,
+                    imdbRating = null,
+                    genres = emptyList(),
+                    director = null,
+                    contentRating = null,
+                    studio = null,
+                    description = "",
+                    badges = emptyList(),
+                    rottenRating = null,
+                    runtime = historyItem.durationMs.toInt(),
+                    hasMultipleSources = false,
+                    viewCount = 0,
+                    audioTracks = emptyList(),
+                    subtitles = emptyList(),
+                    chapters = emptyList(),
+                    markers = emptyList(),
+                    trailers = emptyList(),
+                    similar = emptyList(),
+                    actors = emptyList(),
+                    seasons = emptyList(),
+                    grandparentKey = historyItem.seriesId,
+                    grandparentTitle = null,
+                    parentIndex = null,
+                    index = null
+                )
             }
-        } catch (e: Exception) {
-            android.util.Log.e("MediaRepo", "Erreur ContinueWatching: ${e.message}")
-            // Fallback DB en cas d'erreur
-            // Note: Le DAO retourne un Flow, donc on doit le collecter ou l'émettre.
-            // Ici on simplifie en retournant une liste vide pour l'instant car le DAO retourne Flow
-            // Une vraie implémentation demanderait first() sur le DAO
-            emit(emptyList())
         }
-    }
 
-    override fun getWatchHistory(page: Int, size: Int): Flow<List<Movie>> = flow {
-        try {
-            val history = api.getWatchHistory(page, size)
-            emit(history)
-        } catch (e: Exception) {
-            android.util.Log.e("MediaRepo", "Erreur WatchHistory: ${e.message}")
-            emit(emptyList())
-        }
-    }
-
-    override fun getHubs(): Flow<Map<String, List<Movie>>> = flow {
-        try {
-            val hubs = api.getHubs()
-            val mappedHubs = hubs.mapValues { entry -> entry.value.map { it.toMovie() } }
-            android.util.Log.d("MediaRepo", "Hubs chargés: ${mappedHubs.keys}")
-            emit(mappedHubs)
-        } catch (e: Exception) {
-            android.util.Log.e("MediaRepo", "Erreur Hubs: ${e.message}")
-            emit(emptyMap())
-        }
-    }
-
-    override fun getRecentlyAdded(limit: Int): Flow<List<Movie>> = flow {
-        try {
-            val recent = api.getRecentlyAdded(limit)
-            android.util.Log.d("MediaRepo", "RecentlyAdded chargés: ${recent.size} items")
-            emit(recent)
-        } catch (e: Exception) {
-            android.util.Log.e("MediaRepo", "Erreur RecentlyAdded (API): ${e.message}")
-            // Fallback: Récupérer depuis la DB locale
-            try {
-                // On utilise une requête directe sur le DAO ou on réutilise getMediaPaged pour
-                // récupérer les derniers ajouts
-                // Ici on va simuler en appelant une méthode existante si possible, ou juste vide.
-                // Idéalement: database.movieDao().getRecentlyAdded(limit)
-                emit(emptyList())
-            } catch (dbEx: Exception) {
-                emit(emptyList())
+    override fun getWatchHistory(page: Int, size: Int): Flow<List<Movie>> =
+        database.playHistoryDao().getRecentHistory().map { historyList ->
+            historyList.map { historyItem ->
+                Movie(
+                    id = historyItem.mediaId,
+                    ratingKey = historyItem.mediaId,
+                    title = historyItem.title,
+                    type = historyItem.type,
+                    posterPath = historyItem.posterUrl,
+                    viewOffset = historyItem.positionMs,
+                    duration = historyItem.durationMs,
+                    backdropPath = historyItem.backdropUrl,
+                    addedAt = historyItem.lastPlayedAt.toString(),
+                    year = 0,
+                    rating = 0f,
+                    imdbRating = null,
+                    genres = emptyList(),
+                    director = null,
+                    contentRating = null,
+                    studio = null,
+                    description = "",
+                    badges = emptyList(),
+                    rottenRating = null,
+                    runtime = historyItem.durationMs.toInt(),
+                    hasMultipleSources = false,
+                    viewCount = 0,
+                    audioTracks = emptyList(),
+                    subtitles = emptyList(),
+                    chapters = emptyList(),
+                    markers = emptyList(),
+                    trailers = emptyList(),
+                    similar = emptyList(),
+                    actors = emptyList(),
+                    seasons = emptyList(),
+                    grandparentKey = null,
+                    grandparentTitle = null,
+                    parentIndex = null,
+                    index = null
+                )
             }
+        }
+
+    override fun getHubs(): Flow<Map<String, List<Movie>>> =
+        combine(
+            database.movieDao().getRecentlyAddedByType("movie", 10),
+            database.movieDao().getRecentlyAddedByType("show", 10),
+            database.movieDao().getTopRated(null, 10)
+        ) { recentMovies, recentShows, topRated ->
+            mapOf(
+                "Films récemment ajoutés" to recentMovies.map { it.toMovie() },
+                "Séries récemment ajoutées" to recentShows.map { it.toMovie() },
+                "Les mieux notés" to topRated.map { it.toMovie() }
+            )
+        }
+
+    override fun getRecentlyAdded(limit: Int): Flow<List<Movie>> {
+        return database.movieDao().getRecentlyAdded(limit).map { entities ->
+            entities.map { it.toMovie() }
         }
     }
 
@@ -171,19 +215,16 @@ constructor(private val database: AppDatabase, private val api: MovieApiService)
     }
 
     override suspend fun scrobbleMedia(id: String, action: String) {
-        try {
-            api.scrobble(ScrobbleRequest(id, action))
-        } catch (e: Exception) {
-            e.printStackTrace()
+        if (action == "watched") {
+            database.playHistoryDao().updateHistoryStatus(id, true)
+        } else if (action == "unwatched") {
+            database.playHistoryDao().deleteHistoryItem(id)
         }
     }
 
-    override suspend fun updateProgress(id: String, timeMs: Long) {
-        try {
-            api.updateProgress(ProgressRequest(id, timeMs))
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+    override suspend fun updateProgress(id: String, timeMs: Long, serverName: String) {
+        // Deprecated: Use PlayHistoryRepository.savePlaybackPosition directly in ViewModel
+        // No-op here to break backend dependency
     }
 
     override suspend fun toggleFavorite(id: String) {
@@ -401,7 +442,12 @@ constructor(private val database: AppDatabase, private val api: MovieApiService)
             trailers = emptyList(), // Pas de trailers dans la liste simple
             similar = emptyList(),
             actors = emptyList(),
-            seasons = emptyList()
+            seasons = emptyList(),
+            // Mapping des champs de navigation
+            grandparentKey = this.grandparentKey,
+            grandparentTitle = this.grandparentTitle,
+            parentIndex = this.parentIndex,
+            index = this.index
         )
     }
 }

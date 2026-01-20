@@ -63,7 +63,7 @@ interface MediaRepository {
     suspend fun scrobbleMedia(id: String, action: String)
 
     /** Mettre à jour la progression. */
-    suspend fun updateProgress(id: String, timeMs: Long)
+    suspend fun updateProgress(id: String, timeMs: Long, serverName: String)
 
     /** Basculer favori. */
     suspend fun toggleFavorite(id: String)

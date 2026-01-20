@@ -19,7 +19,7 @@ import androidx.room.TypeConverters
                         RemoteKeys::class,
                         FavoriteEntity::class,
                         PlayHistoryEntity::class],
-        version = 4, // <-- VERSION INCRÉMENTÉE POUR LA MIGRATION
+        version = 6, // <-- VERSION INCRÉMENTÉE POUR LA MIGRATION
         exportSchema = false
 )
 @TypeConverters(Converters::class)

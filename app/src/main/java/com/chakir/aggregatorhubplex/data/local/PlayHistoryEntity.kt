@@ -15,5 +15,8 @@ data class PlayHistoryEntity(
         val lastPlayedAt: Long = System.currentTimeMillis(),
         val positionMs: Long = 0, // Position arrêtée en ms
         val durationMs: Long = 0, // Durée totale
-        val isFinished: Boolean = false // Si > 90%
+        val isFinished: Boolean = false, // Si > 90%
+        val type: String = "movie", // movie ou episode
+        val backdropUrl: String? = null,
+        val seriesId: String? = null // <-- NEW: Store Series ID (grandparentKey)
 )

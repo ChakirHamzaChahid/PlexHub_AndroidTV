@@ -1,6 +1,7 @@
 package com.chakir.aggregatorhubplex.data.network
 
 import com.chakir.aggregatorhubplex.data.dto.MovieListItem
+import com.chakir.aggregatorhubplex.data.dto.ClientInfo
 import com.chakir.aggregatorhubplex.data.dto.ProgressRequest
 import com.chakir.aggregatorhubplex.data.dto.ScanResponse
 import com.chakir.aggregatorhubplex.data.dto.ScrobbleRequest
@@ -43,6 +44,10 @@ interface MovieApiService {
     /** Déclenche un rafraîchissement des données côté serveur. */
     @POST("/api/refresh")
     suspend fun triggerRefresh(): ScanResponse
+
+    /** Récupère la liste des clients connectés. */
+    @GET("/api/clients")
+    suspend fun getClients(): List<ClientInfo>
 
     // --- NOUVEAUX ENDPOINTS ---
 

@@ -14,7 +14,9 @@ interface PlayHistoryRepository {
             title: String,
             posterUrl: String?,
             positionMs: Long,
-            durationMs: Long
+            durationMs: Long,
+            seriesId: String? = null,
+            type: String = "movie"
     )
 
     /**
@@ -25,6 +27,9 @@ interface PlayHistoryRepository {
 
     /** Récupère la liste des médias en cours de lecture pour l'écran d'accueil. */
     fun getContinueWatchingList(): Flow<List<PlayHistoryEntity>>
+
+    /** Marque un média comme vu. */
+    suspend fun markAsWatched(mediaId: String)
 }
 
 /**
@@ -40,7 +45,9 @@ class PlayHistoryRepositoryImpl @Inject constructor(private val historyDao: Play
             title: String,
             posterUrl: String?,
             positionMs: Long,
-            durationMs: Long
+            durationMs: Long,
+            seriesId: String?,
+            type: String
     ) {
         // Règle métier : Si on a regardé moins de 10 secondes, on ne sauvegarde pas (évite le
         // bruit)
@@ -61,7 +68,9 @@ class PlayHistoryRepositoryImpl @Inject constructor(private val historyDao: Play
                         lastPlayedAt = System.currentTimeMillis(),
                         positionMs = positionMs,
                         durationMs = durationMs,
-                        isFinished = isFinished
+                        isFinished = isFinished,
+                        seriesId = seriesId,
+                        type = type
                 )
         historyDao.updateHistory(entity)
     }
@@ -75,5 +84,9 @@ class PlayHistoryRepositoryImpl @Inject constructor(private val historyDao: Play
 
     override fun getContinueWatchingList(): Flow<List<PlayHistoryEntity>> {
         return historyDao.getRecentHistory()
+    }
+
+    override suspend fun markAsWatched(mediaId: String) {
+        historyDao.updateHistoryStatus(mediaId, true)
     }
 }

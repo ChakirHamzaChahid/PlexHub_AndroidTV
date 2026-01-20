@@ -2,6 +2,8 @@ package com.chakir.aggregatorhubplex.data.repository
 
 import android.util.Log
 import com.chakir.aggregatorhubplex.BuildConfig
+import com.chakir.aggregatorhubplex.data.dto.ClientInfo
+import com.chakir.aggregatorhubplex.data.dto.ServerInfo
 import com.chakir.aggregatorhubplex.data.network.MovieApiService
 import com.chakir.aggregatorhubplex.data.ServerHealth
 import com.chakir.aggregatorhubplex.data.ServerStatus
@@ -19,6 +21,12 @@ interface ServerRepository {
      * (Checking, Online, Offline, Slow).
      */
     fun getServerHealth(): Flow<ServerHealth>
+    
+    suspend fun getConnectedServers(): List<ServerInfo>
+    
+    suspend fun getConnectedClients(): List<ClientInfo>
+    
+    suspend fun triggerRefresh(): Boolean
 }
 
 /**
@@ -67,6 +75,35 @@ constructor(
         } catch (e: Exception) {
             Log.e("ServerHealth", "Ping failed: ${e.message}")
             emit(ServerHealth("Serveur Principal", currentUrl, -1, ServerStatus.OFFLINE, true))
+        }
+    }
+
+    override suspend fun getConnectedServers(): List<ServerInfo> = withContext(dispatchers.io) {
+        try {
+            apiService.getServerInfo()
+        } catch (e: Exception) {
+            Log.e("ServerRepo", "Error fetching servers", e)
+            emptyList()
+        }
+    }
+
+    override suspend fun getConnectedClients(): List<ClientInfo> = withContext(dispatchers.io) {
+         try {
+            apiService.getClients()
+        } catch (e: Exception) {
+            Log.e("ServerRepo", "Error fetching clients", e)
+            emptyList()
+        }
+    }
+
+    override suspend fun triggerRefresh(): Boolean = withContext(dispatchers.io) {
+        try {
+            val response = apiService.triggerRefresh()
+            Log.i("ServerRepo", "Refresh triggered: ${response.message}")
+            true
+        } catch (e: Exception) {
+            Log.e("ServerRepo", "Error triggering refresh", e)
+            false
         }
     }
 }

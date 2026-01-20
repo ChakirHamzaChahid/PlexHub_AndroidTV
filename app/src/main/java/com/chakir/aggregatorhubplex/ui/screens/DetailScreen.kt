@@ -52,7 +52,8 @@ import com.chakir.aggregatorhubplex.domain.model.Server
 fun DetailScreen(
     movieId: String,
     startPositionMs: Long,
-    onPlayVideo: (videoUrl: String, title: String, id: String, position: Long) -> Unit,
+    onPlayVideo: (videoUrl: String, title: String, id: String, position: Long, serverName: String, showId: String?, posterUrl: String?, type: String) -> Unit,
+    onEpisodeClick: (String) -> Unit, // New callback for episode navigation
     viewModel: DetailViewModel = hiltViewModel()
 ) {
     // --- ÉTATS ---
@@ -63,7 +64,7 @@ fun DetailScreen(
 
     var seasons by remember { mutableStateOf<List<Season>>(emptyList()) }
     var selectedSeason by remember { mutableStateOf<Season?>(null) }
-    var showEpisodeSourceDialog by remember { mutableStateOf<Episode?>(null) }
+    // showEpisodeSourceDialog removed
     var showMovieSourceDialog by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
@@ -107,10 +108,8 @@ fun DetailScreen(
                             Brush.horizontalGradient(
                                 colors =
                                     listOf(
-                                        MaterialTheme.colorScheme
-                                            .background,
-                                        MaterialTheme.colorScheme
-                                            .background.copy(
+                                        Color.Black,
+                                        Color.Black.copy(
                                                 alpha = 0.5f
                                             ),
                                         Color.Transparent
@@ -129,8 +128,7 @@ fun DetailScreen(
                                 colors =
                                     listOf(
                                         Color.Transparent,
-                                        MaterialTheme.colorScheme
-                                            .background
+                                        Color.Black
                                     ),
                                 startY = 0f,
                                 endY = 2000f
@@ -177,7 +175,10 @@ fun DetailScreen(
                         seasons = seasons,
                         selectedSeason = selectedSeason,
                         onSeasonSelected = { selectedSeason = it },
-                        onEpisodeClick = { showEpisodeSourceDialog = it },
+                        onEpisodeClick = { episode -> 
+                            val episodeId = episode.ratingKey ?: episode.id
+                            onEpisodeClick(episodeId) 
+                        },
                         modifier = Modifier.weight(0.7f)
                     )
                 } else {
@@ -249,7 +250,11 @@ fun DetailScreen(
                                             fullUrl,
                                             movie!!.title,
                                             playId,
-                                            startPositionMs
+                                            startPositionMs,
+                                            server.name,
+                                            null, // Valid for movie
+                                            movie!!.posterUrl,
+                                            "movie"
                                         )
                                         showMovieSourceDialog = false
                                     },
@@ -277,98 +282,7 @@ fun DetailScreen(
         }
     }
 
-    if (showEpisodeSourceDialog != null) {
-        val episode = showEpisodeSourceDialog!!
-        movie?.title ?: ""
-
-        Dialog(onDismissRequest = { showEpisodeSourceDialog = null }) {
-            Box(
-                modifier =
-                    Modifier
-                        .size(600.dp, 400.dp)
-                        .background(Color(0xFF1F1F1F), RoundedCornerShape(16.dp))
-                        .border(
-                            1.dp,
-                            Color(0xFFE5A00D).copy(0.3f),
-                            RoundedCornerShape(16.dp)
-                        )
-                        .padding(24.dp)
-            ) {
-                Column {
-                    Row(
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column {
-                            Text(
-                                "S${selectedSeason?.seasonNumber}E${episode.episodeNumber}",
-                                color = Color(0xFFE5A00D),
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                episode.title,
-                                color = Color.White,
-                                style = MaterialTheme.typography.titleLarge,
-                                maxLines = 1
-                            )
-                        }
-                        IconButton(onClick = { showEpisodeSourceDialog = null }) {
-                            Icon(Icons.Default.Close, null, tint = Color.White)
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Text(
-                        "CHOISISSEZ UNE SOURCE",
-                        color = Color(0xFFE5A00D),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    if (episode.servers.isNullOrEmpty()) {
-                        Text("Aucune source disponible", color = Color(0xFFFF6B6B))
-                    } else {
-                        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            items(episode.servers) { server ->
-                                SourceItemWithActions(
-                                    server = server,
-                                    onPlayClick = {
-                                        val fullUrl = server.streamUrl
-                                        // Use ratingKey if available, fallback to id, fallback to constructed ID
-                                        val episodeId = episode.ratingKey ?: episode.id
-                                        val episodeTitle = episode.title
-                                        onPlayVideo(
-                                            fullUrl,
-                                            episodeTitle,
-                                            episodeId,
-                                            -1L
-                                        ) // Start from beginning for episodes
-                                        showEpisodeSourceDialog = null
-                                    },
-                                    onPlexClick = {
-                                        openExternalLink(
-                                            context,
-                                            server.plexDeepLink ?: server.plexWebUrl,
-                                            "Plex"
-                                        )
-                                    },
-                                    onExternalClick = {
-                                        openExternalLink(
-                                            context,
-                                            server.m3uUrl,
-                                            "Video",
-                                            "video/*"
-                                        )
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
+    // Episode Source Dialog removed
 }
 
 // --- LOGIQUE UTILITAIRE ---

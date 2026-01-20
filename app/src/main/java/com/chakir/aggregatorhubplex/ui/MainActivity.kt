@@ -149,19 +149,25 @@ fun AppNavigation() {
                     val viewModel = androidx.hilt.navigation.compose.hiltViewModel<HomeViewModel>()
                     LaunchedEffect(Unit) { viewModel.onTypeChange("all") }
                     HomeScreen(
-                            onMovieClick = { movie ->
+                        onMovieClick = { movie ->
+                            if (movie.type == "episode" && !movie.grandparentKey.isNullOrEmpty()) {
                                 navController.navigate(
-                                        "details/${movie.id}?startPosition=${movie.viewOffset}"
+                                    "episode_detail/${movie.grandparentKey}/${movie.id}"
                                 )
-                            },
+                            } else {
+                                navController.navigate(
+                                    "details/${movie.id}?startPosition=${movie.viewOffset}"
+                                )
+                            }
+                        },
                             viewModel = viewModel
                     )
                 }
 
                 composable(Screen.Movies.route) {
                     val viewModel = androidx.hilt.navigation.compose.hiltViewModel<HomeViewModel>()
-                    LaunchedEffect(Unit) { viewModel.onTypeChange("movie") }
-                    HomeScreen(
+                    LibraryScreen(
+                            type = "movie",
                             onMovieClick = { movie ->
                                 navController.navigate(
                                         "details/${movie.id}?startPosition=${movie.viewOffset}"
@@ -173,8 +179,8 @@ fun AppNavigation() {
 
                 composable(Screen.Shows.route) {
                     val viewModel = androidx.hilt.navigation.compose.hiltViewModel<HomeViewModel>()
-                    LaunchedEffect(Unit) { viewModel.onTypeChange("show") }
-                    HomeScreen(
+                    LibraryScreen(
+                            type = "show",
                             onMovieClick = { movie ->
                                 navController.navigate(
                                         "details/${movie.id}?startPosition=${movie.viewOffset}"
@@ -228,20 +234,68 @@ fun AppNavigation() {
                     DetailScreen(
                             movieId = movieId,
                             startPositionMs = startPosition,
-                            onPlayVideo = { videoUrl, title, id, position ->
+                            onPlayVideo = { videoUrl, title, id, position, serverName, showId, posterUrl, type ->
                                 val encodedUrl =
                                         URLEncoder.encode(videoUrl, StandardCharsets.UTF_8.toString())
                                 val encodedTitle =
                                         URLEncoder.encode(title, StandardCharsets.UTF_8.toString())
+                                val encodedServerName =
+                                        URLEncoder.encode(serverName, StandardCharsets.UTF_8.toString())
+                                val encodedId = URLEncoder.encode(id, StandardCharsets.UTF_8.toString())
+                                val encodedShowId = if (showId != null) "&show_id=" + URLEncoder.encode(showId, StandardCharsets.UTF_8.toString()) else ""
+                                val encodedPoster =
+                                    if (posterUrl != null)
+                                        "&poster_url=" + URLEncoder.encode(posterUrl, StandardCharsets.UTF_8.toString())
+                                    else ""
+                                val encodedType = "&media_type=$type"
+                                
                                 navController.navigate(
-                                        "player/$encodedUrl?title=$encodedTitle&id=$id&start_position=$position"
+                                        "player/$encodedUrl?title=$encodedTitle&id=$encodedId&start_position=$position&server_name=$encodedServerName$encodedShowId$encodedPoster$encodedType"
                                 )
+                            },
+                            onEpisodeClick = { episodeId ->
+                                val encodedEpisodeId = URLEncoder.encode(episodeId, StandardCharsets.UTF_8.toString())
+                                navController.navigate("episode_detail/$movieId/$encodedEpisodeId")
                             }
                     )
                 }
 
                 composable(
-                        route = "player/{videoUrl}?title={title}&id={id}&start_position={startPosition}",
+                    route = "episode_detail/{seriesId}/{episodeId}",
+                    arguments = listOf(
+                        navArgument("seriesId") { type = NavType.StringType },
+                        navArgument("episodeId") { type = NavType.StringType }
+                    ),
+                    enterTransition = { slideInHorizontally { it } + fadeIn() },
+                    popExitTransition = { slideOutHorizontally { it } + fadeOut() }
+                ) { backStackEntry ->
+                    val seriesId = backStackEntry.arguments?.getString("seriesId") ?: ""
+                    val episodeId = backStackEntry.arguments?.getString("episodeId") ?: ""
+                    
+                    EpisodeDetailScreen(
+                        seriesId = seriesId,
+                        episodeId = episodeId,
+                        onBack = { navController.popBackStack() },
+                        onPlayVideo = { videoUrl, title, id, position, serverName, showId, posterUrl, type ->
+                            val encodedUrl = URLEncoder.encode(videoUrl, StandardCharsets.UTF_8.toString())
+                            val encodedTitle = URLEncoder.encode(title, StandardCharsets.UTF_8.toString())
+                            val encodedServerName = URLEncoder.encode(serverName, StandardCharsets.UTF_8.toString())
+                            val encodedId = URLEncoder.encode(id, StandardCharsets.UTF_8.toString())
+                            val encodedShowId = if (showId != null) "&show_id=" + URLEncoder.encode(showId, StandardCharsets.UTF_8.toString()) else ""
+                            val encodedPoster = if (posterUrl != null)
+                                "&poster_url=" + URLEncoder.encode(posterUrl, StandardCharsets.UTF_8.toString())
+                            else ""
+                            val encodedType = "&media_type=$type"
+                            
+                            navController.navigate(
+                                "player/$encodedUrl?title=$encodedTitle&id=$encodedId&start_position=$position&server_name=$encodedServerName$encodedShowId$encodedPoster$encodedType"
+                            )
+                        }
+                    )
+                }
+
+                composable(
+                        route = "player/{videoUrl}?title={title}&id={id}&start_position={startPosition}&server_name={serverName}&show_id={showId}&poster_url={posterUrl}&media_type={mediaType}",
                         arguments =
                                 listOf(
                                         navArgument("videoUrl") { type = NavType.StringType },
@@ -256,6 +310,22 @@ fun AppNavigation() {
                                         navArgument("startPosition") {
                                             type = NavType.LongType
                                             defaultValue = -1L
+                                        },
+                                        navArgument("serverName") {
+                                            type = NavType.StringType
+                                            nullable = true
+                                        },
+                                        navArgument("showId") {
+                                            type = NavType.StringType
+                                            nullable = true
+                                        },
+                                        navArgument("posterUrl") {
+                                            type = NavType.StringType
+                                            nullable = true
+                                        },
+                                        navArgument("mediaType") {
+                                            type = NavType.StringType
+                                            defaultValue = "movie"
                                         }
                                 ),
                         enterTransition = { fadeIn(tween(500)) },
@@ -265,12 +335,20 @@ fun AppNavigation() {
                     val title = backStackEntry.arguments?.getString("title") ?: "Vidéo"
                     val id = backStackEntry.arguments?.getString("id") ?: ""
                     val startPosition = backStackEntry.arguments?.getLong("startPosition") ?: -1L
+                    val serverName = backStackEntry.arguments?.getString("serverName")
+                    val showId = backStackEntry.arguments?.getString("showId")
+                    val posterUrl = backStackEntry.arguments?.getString("posterUrl")
+                    val mediaType = backStackEntry.arguments?.getString("mediaType") ?: "movie"
 
                     PlayerScreen(
                             streamUrl = videoUrl,
                             mediaTitle = title,
                             mediaId = id,
                             startPositionMs = startPosition,
+                            serverName = serverName,
+                            showId = showId,
+                            posterUrl = posterUrl,
+                            type = mediaType,
                             onBack = { navController.popBackStack() }
                     )
                 }

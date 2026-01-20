@@ -21,6 +21,10 @@ interface PlayHistoryDao {
     @Query("SELECT * FROM play_history ORDER BY lastPlayedAt DESC LIMIT 20")
     fun getRecentHistory(): Flow<List<PlayHistoryEntity>>
 
+    /** Met à jour le statut "fini" d'un média. */
+    @Query("UPDATE play_history SET isFinished = :isFinished WHERE mediaId = :mediaId")
+    suspend fun updateHistoryStatus(mediaId: String, isFinished: Boolean)
+
     /** Supprime une entrée de l'historique. */
     @Query("DELETE FROM play_history WHERE mediaId = :mediaId")
     suspend fun deleteHistoryItem(mediaId: String)

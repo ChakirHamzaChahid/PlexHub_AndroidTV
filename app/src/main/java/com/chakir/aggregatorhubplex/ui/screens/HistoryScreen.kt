@@ -19,6 +19,7 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.chakir.aggregatorhubplex.domain.model.Movie
 import com.chakir.aggregatorhubplex.data.repository.MediaRepository
+import com.chakir.aggregatorhubplex.ui.components.MovieCard
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -57,9 +58,11 @@ fun HistoryScreen(
         viewModel.refresh()
     }
 
-    Box(modifier = Modifier
-        .fillMaxSize()
-        .background(MaterialTheme.colorScheme.background)) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
         Column(modifier = Modifier.padding(48.dp)) {
             Text(
                 "Historique de visionnage",

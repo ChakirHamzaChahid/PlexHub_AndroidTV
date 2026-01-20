@@ -4,6 +4,7 @@ import android.app.Activity
 import android.view.LayoutInflater
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -69,9 +70,13 @@ fun PlayerScreen(
     streamUrl: String,
     mediaTitle: String = "Vidéo",
     mediaId: String = "",
+    serverName: String?,
+    showId: String? = null,
     startPositionMs: Long = -1L,
     chapters: List<Chapter>? = null,
     markers: List<Marker>? = null,
+    posterUrl: String? = null,
+    type: String = "movie",
     onBack: () -> Unit,
     viewModel: PlayerViewModel = hiltViewModel()
 ) {
@@ -103,8 +108,8 @@ fun PlayerScreen(
 
     remember { 0 } // Simplifié pour l'instant
     remember { 0L } // Serait collecté depuis l'état du joueur dans une implémentation réelle
-    val chaptersState = chapters ?: emptyList()
-    val markersState = markers ?: emptyList()
+    chapters ?: emptyList()
+    markers ?: emptyList()
     remember { mutableStateOf<Chapter?>(null) }
     val visibleMarkersState = remember { mutableStateOf<List<Marker>>(emptyList()) }
     var showControls by remember { mutableStateOf(true) }
@@ -144,14 +149,21 @@ fun PlayerScreen(
             url = streamUrl,
             id = mediaId,
             startPositionMs = startPositionMs,
+            serverName = serverName,
             chapters = chapters,
-            markers = markers
+            markers = markers,
+            showId = showId,
+            title = mediaTitle,
+            posterUrl = posterUrl,
+            type = type
         )
     }
 
-    Box(modifier = Modifier
-        .fillMaxSize()
-        .background(Color.Black)) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+    ) {
         AndroidView(
             modifier = Modifier.fillMaxSize(),
             factory = { ctx ->
@@ -159,31 +171,44 @@ fun PlayerScreen(
                 val playerView = inflater.inflate(R.layout.view_player, null) as PlayerView
                 playerView.player = viewModel.player
                 playerView.keepScreenOn = true
+                playerView.useController = false // Disable native controls to use custom overlay
                 playerView
             }
         )
 
-        // Barre de recherche améliorée en bas
-        if (showControls) {
-            Box(
-                modifier =
-                    Modifier
-                        .align(androidx.compose.ui.Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .background(Color.Black.copy(alpha = 0.7f))
-                        .padding(8.dp)
-            ) {
-                EnhancedSeekBar(
-                    currentPosition = viewModel.player.currentPosition,
-                    duration = viewModel.player.duration,
-                    chapters = chaptersState,
-                    markers = markersState,
-                    onSeek = { position ->
-                        onUserInteraction()
-                        viewModel.seekTo(position)
+        // Zone transparente pour détecter les clics et afficher/masquer les contrôles
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clickable(
+                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                    indication = null
+                ) {
+                    showControls = !showControls
+                    if (showControls) {
+                        lastInteractionTime = System.currentTimeMillis()
                     }
-                )
-            }
+                }
+        )
+
+
+        // Passer 'nextMedia' à l'overlay
+        if (showControls) {
+            val nextMedia by viewModel.nextMedia.collectAsState()
+            com.chakir.aggregatorhubplex.ui.components.PlayerControlsOverlay(
+                player = viewModel.player,
+                chapterMarkerManager = viewModel.chapterMarkerManager,
+                showControls = showControls,
+                onSeek = { position ->
+                    onUserInteraction()
+                    viewModel.seekTo(position)
+                },
+                nextMedia = nextMedia,
+                onPlayNext = {
+                    onUserInteraction()
+                    viewModel.playNext()
+                }
+            )
         }
 
         // Bouton pour sauter l'intro (haut droit)

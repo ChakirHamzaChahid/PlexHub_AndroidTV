@@ -173,7 +173,12 @@ data class Movie(
     // Champs existants
     val hasMultipleSources: Boolean = false,
     @SerialName("view_offset") val viewOffset: Long = 0,
-    val duration: Long = 0
+    val duration: Long = 0,
+    // Navigation fields
+    val grandparentKey: String? = null,
+    val grandparentTitle: String? = null,
+    val parentIndex: Int? = null,
+    val index: Int? = null
 ) {
     // URL corrigée pour l'affiche
     val posterUrl: String

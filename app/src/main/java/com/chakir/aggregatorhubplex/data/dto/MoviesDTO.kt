@@ -39,7 +39,13 @@ data class MovieListItem(
     @SerialName("view_offset") val viewOffset: Long? = null,
     @SerialName("view_count") val viewCount: Int? = null,
     val episodes: List<EpisodeDTO>? = emptyList(),
-    val sources: List<SourceDTO>? = emptyList()
+    val sources: List<SourceDTO>? = emptyList(),
+    // Navigation fields for Episodes
+    @SerialName("grandparentKey") val grandparentKey: String? = null,
+    @SerialName("grandparentTitle") val grandparentTitle: String? = null,
+    @SerialName("parentKey") val parentKey: String? = null,
+    @SerialName("index") val index: Int? = null,
+    @SerialName("parentIndex") val parentIndex: Int? = null
 )
 
 /** DTO pour les pistes audio. */
@@ -111,7 +117,11 @@ data class ScrobbleRequest(
 
 /** Requête pour la mise à jour de la progression. */
 @Serializable
-data class ProgressRequest(val key: String, @SerialName("time_ms") val timeMs: Long)
+data class ProgressRequest(
+    val key: String,
+    @SerialName("time_ms") val timeMs: Long,
+    @SerialName("server_name") val serverName: String? = null
+)
 
 /** Modèle représentant les informations d'un serveur Plex. */
 @Serializable
@@ -126,3 +136,13 @@ data class ServerInfo(
 /** Modèle de réponse pour les opérations de scan/rafraîchissement. */
 @Serializable
 data class ScanResponse(val message: String, val status: String)
+
+/** Modèle représentant un client connecté (lecteur). */
+@Serializable
+data class ClientInfo(
+    val name: String,
+    val address: String,
+    val product: String? = null,
+    val device: String? = null,
+    val status: String = "Idle"
+)
